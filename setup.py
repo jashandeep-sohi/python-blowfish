@@ -14,18 +14,26 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from blowfish import __version__
+from blowfish import __version__, __doc__
 from distutils.core import setup
 
 if __name__ == "__main__":
   setup(
     name = "blowfish",
     version = __version__,
-    description = "A pure Python implementation of Blowfish, a symmetric-key \
-                   block cipher.",
+    description = "A pure Python implementation of Blowfish, a symmetric-key block cipher.",
+    long_description  = __doc__,
     author = "Jashandeep Sohi",
     author_email = "jashandeep.s.sohi@gmail.com",
     url = "https://github.com/jashandeep-sohi/python-blowfish",
     license = "GPLv3",
-    py_modules = ["blowfish"]
+    py_modules = ["blowfish"],
+    classifiers = [
+     "Development Status :: 5 - Production/Stable",
+     "Intended Audience :: Developers",
+     "Intended Audience :: Education",
+     "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+     "Programming Language :: Python :: 3.4",
+     "Topic :: Security :: Cryptography",
+    ],
   )
