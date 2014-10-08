@@ -25,7 +25,7 @@ if __name__ == "__main__":
                    block cipher.",
     author = "Jashandeep Sohi",
     author_email = "jashandeep.s.sohi@gmail.com",
-    url = "https://github.com/jashandeep-sohi/python-blowfish,
+    url = "https://github.com/jashandeep-sohi/python-blowfish",
     license = "GPLv3",
     py_modules = ["blowfish"]
   )
