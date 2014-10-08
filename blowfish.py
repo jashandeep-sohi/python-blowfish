@@ -15,10 +15,8 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 r"""
-blowfish
-
-This module implements the Blowfish symmetric-key block cipher designed by
-Bruce Schneier. It's implemented entierly in Python, with the only
+This module implements Blowfish, a symmetric-key block cipher designed by
+Bruce Schneier. It's implemented entirely in Python, with the only
 dependency being Python 3.4 or higher.
 
 To encrypt or decrypt data, first create a :class:`Cipher` object with a `key`::
@@ -35,6 +33,8 @@ respectively::
   b"12345678"
 
 """
+
+__version__ = "0.1.0"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -236,8 +236,8 @@ class Cipher(object):
   <http://en.wikipedia.org/wiki/Block_cipher> and
   <https://www.schneier.com/blowfish.html>.
   
-  A new :class:`Cipher` object is created using a `key` between 8 and 
-  448 bytes::
+  Each :class:`Cipher` object is created with a `key`, between 8 and 
+  448 bytes, that is used to encrypt or decrypt blocks::
     
     >>> c = Cipher(b"12345678")
   
