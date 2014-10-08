@@ -34,7 +34,7 @@ respectively::
 
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
