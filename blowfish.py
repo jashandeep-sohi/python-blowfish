@@ -276,30 +276,36 @@ class Cipher(object):
         L, R = self._encrypt(L, R)
         box[i], box[i + 1] = L, R
     
-  def _f(self, x):
-    S = self.S
-    d = x & 0xff
-    x >>= 8
-    c = x & 0xff
-    x >>= 8
-    b = x & 0xff
-    x >>= 8
-    a = x & 0xff
-    return (((S[0][a] + S[1][b]) ^ S[2][c]) + S[3][d]) & 0xffffffff
+  def _f(self, a, b, c, d):
+    return (((a + b) ^ c) + d) & 0xffffffff
   
   def _encrypt(self, L, R):
     P = self.P
-    for i in range(len(P) - 2):
-      L ^= P[i]
-      R ^= self._f(L)
+    S = self.S
+    f = self._f
+    for p in P[0:-2]:
+      L ^= p
+      R ^= f(
+        S[0][(L >> 24) & 0xff],
+        S[1][(L >> 16) & 0xff],
+        S[2][(L >> 8) & 0xff],
+        S[3][L & 0xff]
+      )
       L, R = R, L
     return R ^ P[-1], L ^ P[-2]
     
   def _decrypt(self, L, R):
     P = self.P
-    for i in range(len(P) - 1, 1, -1):
-      L ^= P[i]
-      R ^= self._f(L)
+    S = self.S
+    f = self._f
+    for p in P[-1:1:-1]:
+      L ^= p
+      R ^= f(
+        S[0][(L >> 24) & 0xff],
+        S[1][(L >> 16) & 0xff],
+        S[2][(L >> 8) & 0xff],
+        S[3][L & 0xff]
+      )
       L, R = R, L
     return R ^ P[0], L ^ P[1]
   
