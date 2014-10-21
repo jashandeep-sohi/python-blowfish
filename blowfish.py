@@ -313,7 +313,7 @@ class Cipher(object):
     """
       Return the encrypted ciphertext of a `block` of plaintext as a
       :obj:`bytes` object.
-      The returned object always has a length of 8 (i.e. 64-bits).
+      The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
       
       `block` should be a :obj:`bytes`-like object with a length of exactly
       8 (i.e. 64-bits). If it is not, no exception is raised, but the returned
@@ -335,17 +335,17 @@ class Cipher(object):
       int.from_bytes(block[0:4], byte_order),
       int.from_bytes(block[4:8], byte_order),
     )
-    return b"".join(x.to_bytes(4, byte_order) for x in (L,R))
+    return ((L << 32) + (R & 0xffffffff)).to_bytes(8, byte_order)
   
   def decrypt_block(self, block, byte_order = "big"):
     """
       Return the decrypted plaintext of a `block` of ciphertext as a
       :obj:`bytes` object.
-      The returned object always has a length of 8.
+      The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
       
       `block` should be a :obj:`bytes`-like object with a length of exactly
       8 (i.e. 64-bits). If it is not, no exception is raised, but the returned
-      plaintext will most likely be wrong.
+      plaintext will most likely be incorrect.
       
       `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
       to be changed. By default it's ``"big"``, since that's what most
@@ -363,12 +363,12 @@ class Cipher(object):
       int.from_bytes(block[0:4], byte_order),
       int.from_bytes(block[4:8], byte_order),
     )
-    return b"".join(x.to_bytes(4, byte_order) for x in (L,R))
-  
+    return ((L << 32) + (R & 0xffffffff)).to_bytes(8, byte_order)
+    
     
 if __name__ == "__main__":
-  import codecs
-  print("Running tests...")
+  
+  print("Running tests...", end="", flush=True)
   
   # Test vectors from <https://www.schneier.com/code/vectors.txt>
   test_blocks = (
@@ -409,6 +409,8 @@ if __name__ == "__main__":
     ("FEDCBA9876543210", "FFFFFFFFFFFFFFFF", "6B5C5A9C5D9E0A5A"),
   )
   
+  import codecs
+  
   for test_block in test_blocks:
     test_key, test_clear_text, test_cipher_text = [
       x.lower() for x in test_block
@@ -435,7 +437,13 @@ if __name__ == "__main__":
         test_clear_text,
         clear_text
       )
-  print("Finished.")
+  print("Success!")
+ 
+  
+
+  
+  
+  
     
   
     
