@@ -335,7 +335,7 @@ class Cipher(object):
       int.from_bytes(block[0:4], byte_order),
       int.from_bytes(block[4:8], byte_order),
     )
-    return ((L << 32) + (R & 0xffffffff)).to_bytes(8, byte_order)
+    return ((L << 32) ^ (R & 0xffffffff)).to_bytes(8, byte_order)
   
   def decrypt_block(self, block, byte_order = "big"):
     """
@@ -363,7 +363,7 @@ class Cipher(object):
       int.from_bytes(block[0:4], byte_order),
       int.from_bytes(block[4:8], byte_order),
     )
-    return ((L << 32) + (R & 0xffffffff)).to_bytes(8, byte_order)
+    return ((L << 32) ^ (R & 0xffffffff)).to_bytes(8, byte_order)
     
     
 if __name__ == "__main__":
@@ -437,15 +437,36 @@ if __name__ == "__main__":
         test_clear_text,
         clear_text
       )
-  print("Success!")
- 
+  print("Success!\n")
   
-
+  class Timer(object):
+    def __init__(self, clock):
+      self.clock = clock
+      self.elapsed = 0
+      
+    def __enter__(self):
+      self._enter_time = self.clock()
+      
+    def __exit__(self, exc_type, exc_value, traceback):
+      t = self.clock()
+      self.elapsed += t - self._enter_time
+  
+  print("Benchmarking...")
+  
+  import time
+  import random
+  
+  test_cipher = Cipher(b"this ist a key")
+  rand_block = bytes(random.sample(range(0, 256), 8))
   
   
+  for _ in range(0, 10):
+    print("encrypt_block...", end="", flush=True)
+    timer = Timer(time.perf_counter)
+    for i in range(1, 10001):
+      with timer:
+        test_cipher.encrypt_block(rand_block)
+    print("{} times in {:.5f} sec".format(i, timer.elapsed))
   
-    
   
-    
-
 # vim: tabstop=2 expandtab
