@@ -275,36 +275,36 @@ class Cipher(object):
       for i in range(0, len(box), 2):
         L, R = self._encrypt(L, R)
         box[i], box[i + 1] = L, R
-    
+
   def _f(self, a, b, c, d):
     return (((a + b) ^ c) + d) & 0xffffffff
-  
+    
   def _encrypt(self, L, R):
     P = self.P
-    S = self.S
+    S0, S1, S2, S3 = self.S
     f = self._f
     for p in P[0:-2]:
       L ^= p
       R ^= f(
-        S[0][(L >> 24) & 0xff],
-        S[1][(L >> 16) & 0xff],
-        S[2][(L >> 8) & 0xff],
-        S[3][L & 0xff]
+        S0[(L >> 24) & 0xff],
+        S1[(L >> 16) & 0xff],
+        S2[(L >> 8) & 0xff],
+        S3[L & 0xff]
       )
       L, R = R, L
     return R ^ P[-1], L ^ P[-2]
     
   def _decrypt(self, L, R):
     P = self.P
-    S = self.S
+    S0, S1, S2, S3 = self.S
     f = self._f
     for p in P[-1:1:-1]:
       L ^= p
       R ^= f(
-        S[0][(L >> 24) & 0xff],
-        S[1][(L >> 16) & 0xff],
-        S[2][(L >> 8) & 0xff],
-        S[3][L & 0xff]
+        S0[(L >> 24) & 0xff],
+        S1[(L >> 16) & 0xff],
+        S2[(L >> 8) & 0xff],
+        S3[L & 0xff]
       )
       L, R = R, L
     return R ^ P[0], L ^ P[1]
@@ -456,17 +456,18 @@ if __name__ == "__main__":
   import time
   import random
   
-  test_cipher = Cipher(b"this ist a key")
-  rand_block = bytes(random.sample(range(0, 256), 8))
+  test_cipher = Cipher(b"this ist a key")  
   
-  
-  for _ in range(0, 10):
+  for _ in range(0, 5):
     print("encrypt_block...", end="", flush=True)
     timer = Timer(time.perf_counter)
     for i in range(1, 10001):
+      rand_block = bytes(random.sample(range(0, 256), 8))
       with timer:
         test_cipher.encrypt_block(rand_block)
-    print("{} times in {:.5f} sec".format(i, timer.elapsed))
+    print("{} random blocks in {:.5f} sec".format(i, timer.elapsed))
+  
+  
   
   
 # vim: tabstop=2 expandtab
