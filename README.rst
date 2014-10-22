@@ -28,6 +28,9 @@ Usage
     ciphertext = cipher.encrypt_block(b"12345678")
     plaintext = cipher.decrypt_block(ciphertext)
     assert plaintext == b"12345678"
-    
+
+TODO
+----
+- Implement common modes of operation (ECB, CBC, etc.)
 
 .. vim: tabstop=2 expandtab
