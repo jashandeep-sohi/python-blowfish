@@ -34,6 +34,8 @@ respectively::
 
 """
 
+from struct import Struct
+
 __version__ = "0.3.0"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
@@ -243,21 +245,29 @@ class Cipher(object):
   
   By default, the hexadecimal digits of Pi are used for the initial P array
   and S-boxes. But if you'd like to experiment these can be changed using the
-  `P_initial` and `S_initial` arguments.
+  `P_array` and `S_boxes` arguments.
   
   Encrypting and decrypting is accomplished by using the
   :method:`Cipher.encrypt_block` and :method:`Cipher.decrypt_block` methods.
   
   """
-  def __init__(self, key, P_initial = _PI_P_ARRAY, S_initial = _PI_S_BOXES):      
+  
+  _LR_STRUCTS = {
+    "big": Struct(">2I"),
+    "little": Struct("<2I")
+  }
+  
+  def __init__(self, key, P_array = _PI_P_ARRAY, S_boxes = _PI_S_BOXES):
     if not 8 <= len(key) <= 448:
       raise ValueError("key size is not between 8 and 448")
     
-    # Copy P_intial & S_inital locally
-    S = self.S = tuple(list(box) for box in S_initial)
-    P = self.P = list(P_initial)
+    # Copy P array locally
+    P = self.P = list(P_array)
     
-    # Generate subkey P & S
+    # Copy S-boxes locally
+    S0, S1, S2, S3 = self.S = tuple(list(box) for box in S_boxes)
+    
+    # Generate subkey P array
     j = 0
     for i in range(len(P)):
       data = 0x00000000
@@ -270,12 +280,18 @@ class Cipher(object):
     for i in range(0, len(P), 2):
       L, R = self._encrypt(L, R)
       P[i], P[i + 1] = L, R
-      
-    for box in S:
-      for i in range(0, len(box), 2):
+    
+    # Generate subkey S-boxes  
+    for box in (S0, S1, S2, S3):
+      for i in range(0, 256, 2):
         L, R = self._encrypt(L, R)
         box[i], box[i + 1] = L, R
 
+    # Make P & S immutable
+    self.P = tuple(P)
+    self.S = tuple(tuple(s) for s in (S0, S1, S2, S3))
+    
+     
   def _f(self, a, b, c, d):
     return (((a + b) ^ c) + d) & 0xffffffff
     
@@ -284,7 +300,7 @@ class Cipher(object):
     S0, S1, S2, S3 = self.S
     f = self._f
     for p in P[0:-2]:
-      L ^= p
+      L ^= p 
       R ^= f(
         S0[(L >> 24) & 0xff],
         S1[(L >> 16) & 0xff],
@@ -311,59 +327,53 @@ class Cipher(object):
   
   def encrypt_block(self, block, byte_order = "big"):
     """
-      Return the encrypted ciphertext of a `block` of plaintext as a
-      :obj:`bytes` object.
-      The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    Return the encrypted ciphertext of a `block` of plaintext as a
+    :obj:`bytes` object.
+    The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    
+    `block` should be a :obj:`bytes`-like object with a length of exactly
+    8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
+    ciphertext will most likely be wrong.
+    
+    `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
+    to be changed. By default it's ``"big"``, since that's what most
+    implementations use.
+    
+    Example:
       
-      `block` should be a :obj:`bytes`-like object with a length of exactly
-      8 (i.e. 64-bits). If it is not, no exception is raised, but the returned
-      ciphertext will most likely be wrong.
-      
-      `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
-      to be changed. By default it's ``"big"``, since that's what most
-      implementations use.
-      
-      Example:
-        
-        >>> import codecs
-        >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
-        >>> ct = c.encrypt_block(bytes.from_hex("0756D8E0774761D2"))
-        >>> codecs.encode(ct, "hex")
-        "432193B78951FC98"
+      >>> import codecs
+      >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
+      >>> ct = c.encrypt_block(bytes.from_hex("0756D8E0774761D2"))
+      >>> codecs.encode(ct, "hex")
+      "432193B78951FC98"
     """
-    L, R = self._encrypt(
-      int.from_bytes(block[0:4], byte_order),
-      int.from_bytes(block[4:8], byte_order),
-    )
-    return ((L << 32) ^ (R & 0xffffffff)).to_bytes(8, byte_order)
+    st = self._LR_STRUCTS[byte_order]
+    return st.pack(*self._encrypt(*st.unpack(block)))
   
   def decrypt_block(self, block, byte_order = "big"):
     """
-      Return the decrypted plaintext of a `block` of ciphertext as a
-      :obj:`bytes` object.
-      The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    Return the decrypted plaintext of a `block` of ciphertext as a
+    :obj:`bytes` object.
+    The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    
+    `block` should be a :obj:`bytes`-like object with a length of exactly
+    8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
+    plaintext will most likely be incorrect.
+    
+    `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
+    to be changed. By default it's ``"big"``, since that's what most
+    implementations use.
+    
+    Example:
       
-      `block` should be a :obj:`bytes`-like object with a length of exactly
-      8 (i.e. 64-bits). If it is not, no exception is raised, but the returned
-      plaintext will most likely be incorrect.
-      
-      `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
-      to be changed. By default it's ``"big"``, since that's what most
-      implementations use.
-      
-      Example:
-        
-        >>> import codecs
-        >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
-        >>> ct = c.decrypt_block(bytes.from_hex("432193B78951FC98"))
-        >>> codecs.encode(ct, "hex")
-        "0756D8E0774761D2"
+      >>> import codecs
+      >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
+      >>> ct = c.decrypt_block(bytes.from_hex("432193B78951FC98"))
+      >>> codecs.encode(ct, "hex")
+      "0756D8E0774761D2"
     """
-    L, R = self._decrypt(
-      int.from_bytes(block[0:4], byte_order),
-      int.from_bytes(block[4:8], byte_order),
-    )
-    return ((L << 32) ^ (R & 0xffffffff)).to_bytes(8, byte_order)
+    st = self._LR_STRUCTS[byte_order]
+    return st.pack(*self._decrypt(*st.unpack(block)))
     
     
 if __name__ == "__main__":
