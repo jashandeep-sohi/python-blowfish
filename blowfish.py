@@ -238,6 +238,7 @@ _LR_STRUCTS = {
   "little": Struct("<2I")
 }
 
+
 class Cipher(object):
   """
   Implements the Blowfish block-cipher. You can read more about Blowfish at
@@ -259,8 +260,8 @@ class Cipher(object):
   """
     
   def __init__(self, key, P_array = _PI_P_ARRAY, S_boxes = _PI_S_BOXES):
-    if not 8 <= len(key) <= 448:
-      raise ValueError("key size is not between 8 and 448")
+    if not 8 <= len(key) <= 56:
+      raise ValueError("key size is not between 8 and 56")
           
     # Copy P array locally
     P = self.P = list(P_array)
@@ -294,7 +295,6 @@ class Cipher(object):
     # Make S-boxes immutable
     self.S = tuple(tuple(s) for s in self.S)
     
-     
   def _f(self, a, b, c, d):
     return (((a + b) ^ c) + d) & 0xffffffff
     
@@ -450,6 +450,7 @@ if __name__ == "__main__":
     ("FFFFFFFFFFFFFFFF", "0000000000000000", "F21E9A77B71C49BC"),
     ("0123456789ABCDEF", "0000000000000000", "245946885754369A"),
     ("FEDCBA9876543210", "FFFFFFFFFFFFFFFF", "6B5C5A9C5D9E0A5A"),
+    ("F0"
   )
   
   import codecs
@@ -500,11 +501,12 @@ if __name__ == "__main__":
   
   test_cipher = Cipher(b"this ist a key")  
   
+  num_blocks = 10000
+  rand_blocks = urandom(8 * num_blocks)
+  
   print("\nBenchmarking 'encrypt_block'...")
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
-    num_blocks = 10000
-    rand_blocks = urandom(8 * num_blocks)
     for i in range(0, 8 * num_blocks, 8):
       rand_block = rand_blocks[i:i+8]
       with timer:
@@ -514,8 +516,6 @@ if __name__ == "__main__":
   print("\nBenchmarking 'encrypt_ecb'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
-    num_blocks = 10000
-    rand_blocks = urandom(8 * num_blocks)
     with timer:
       b"".join(test_cipher.encrypt_ecb(rand_blocks))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
@@ -523,8 +523,6 @@ if __name__ == "__main__":
   print("\nBenchmarking 'encrypt_cbc'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
-    num_blocks = 10000
-    rand_blocks = urandom(8 * num_blocks)
     with timer:
       b"".join(test_cipher.encrypt_cbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
@@ -532,8 +530,6 @@ if __name__ == "__main__":
   print("\nBenchmarking 'decrypt_cbc'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
-    num_blocks = 10000
-    rand_blocks = urandom(8 * num_blocks)
     with timer:
       b"".join(test_cipher.decrypt_cbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
