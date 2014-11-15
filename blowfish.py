@@ -233,6 +233,11 @@ _PI_S_BOXES = (
   ),
 )
 
+_LR_STRUCTS = {
+  "big": Struct(">2I"),
+  "little": Struct("<2I")
+}
+
 class Cipher(object):
   """
   Implements the Blowfish block-cipher. You can read more about Blowfish at
@@ -252,12 +257,7 @@ class Cipher(object):
   :method:`Cipher.encrypt_block` and :method:`Cipher.decrypt_block` methods.
   
   """
-  
-  _LR_STRUCTS = {
-    "big": Struct(">2I"),
-    "little": Struct("<2I")
-  }
-  
+    
   def __init__(self, key, P_array = _PI_P_ARRAY, S_boxes = _PI_S_BOXES):
     if not 8 <= len(key) <= 448:
       raise ValueError("key size is not between 8 and 448")
@@ -350,7 +350,7 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "432193B78951FC98"
     """
-    lr_struct = self._LR_STRUCTS[byte_order]
+    lr_struct = _LR_STRUCTS[byte_order]
     return lr_struct.pack(*self._encrypt(*lr_struct.unpack(block)))
   
   def decrypt_block(self, block, byte_order = "big"):
@@ -375,20 +375,38 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "0756D8E0774761D2"
     """
-    lr_struct = self._LR_STRUCTS[byte_order]
+    lr_struct = _LR_STRUCTS[byte_order]
     return lr_struct.pack(*self._decrypt(*lr_struct.unpack(block)))
     
   def encrypt_ecb(self, data, byte_order = "big"):
-    lr_struct = self._LR_STRUCTS[byte_order]
+    lr_struct = _LR_STRUCTS[byte_order]
     yield from starmap(
       lr_struct.pack, starmap(self._encrypt, lr_struct.iter_unpack(data))
     )
     
   def decrypt_ecb(self, data, byte_order = "big"):
-    lr_struct = self._LR_STRUCTS[byte_order]
+    lr_struct = _LR_STRUCTS[byte_order]
     yield from starmap(
       lr_struct.pack, starmap(self._decrypt, lr_struct.iter_unpack(data))
     )
+    
+  def encrypt_cbc(self, data, init_vector, byte_order = "big"):
+    lr_struct = _LR_STRUCTS[byte_order]
+    prev_l, prev_r = lr_struct.unpack(init_vector)
+    
+    for l, r in lr_struct.iter_unpack(data):
+      yield lr_struct.pack(*self._encrypt(l ^ prev_l, r ^ prev_r))
+      prev_l, prev_r = l, r
+      
+  def decrypt_cbc(self, data, init_vector, byte_order = "big"):
+    lr_struct = _LR_STRUCTS[byte_order]
+    prev_l, prev_r = lr_struct.unpack(init_vector)
+    
+    for l, r in lr_struct.iter_unpack(data):
+      dl, dr = self._decrypt(l, r)
+      yield lr_struct.pack(dl ^ prev_l, dr ^ prev_r)
+      prev_l, prev_r = l, r
+    
     
 if __name__ == "__main__":
   
@@ -500,6 +518,24 @@ if __name__ == "__main__":
     rand_blocks = urandom(8 * num_blocks)
     with timer:
       b"".join(test_cipher.encrypt_ecb(rand_blocks))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'encrypt_cbc'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    num_blocks = 10000
+    rand_blocks = urandom(8 * num_blocks)
+    with timer:
+      b"".join(test_cipher.encrypt_cbc(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_cbc'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    num_blocks = 10000
+    rand_blocks = urandom(8 * num_blocks)
+    with timer:
+      b"".join(test_cipher.decrypt_cbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
   
