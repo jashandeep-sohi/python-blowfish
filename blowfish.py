@@ -35,6 +35,7 @@ respectively::
 """
 
 from struct import Struct
+from itertools import starmap
 
 __version__ = "0.3.0"
 
@@ -260,13 +261,13 @@ class Cipher(object):
   def __init__(self, key, P_array = _PI_P_ARRAY, S_boxes = _PI_S_BOXES):
     if not 8 <= len(key) <= 448:
       raise ValueError("key size is not between 8 and 448")
-    
+          
     # Copy P array locally
     P = self.P = list(P_array)
     
     # Copy S-boxes locally
-    S0, S1, S2, S3 = self.S = tuple(list(box) for box in S_boxes)
-    
+    S = self.S = list(list(box) for box in S_boxes)
+
     # Generate subkey P array
     j = 0
     for i in range(len(P)):
@@ -280,16 +281,18 @@ class Cipher(object):
     for i in range(0, len(P), 2):
       L, R = self._encrypt(L, R)
       P[i], P[i + 1] = L, R
-    
-    # Generate subkey S-boxes  
-    for box in (S0, S1, S2, S3):
-      for i in range(0, 256, 2):
+        
+    # Generate subkey S-boxes
+    for box in S:
+      for j in range(0, 256, 2):
         L, R = self._encrypt(L, R)
-        box[i], box[i + 1] = L, R
-
-    # Make P & S immutable
-    self.P = tuple(P)
-    self.S = tuple(tuple(s) for s in (S0, S1, S2, S3))
+        box[j], box[j + 1] = L, R
+    
+    # Make P array immutable
+    self.P = tuple(self.P)
+    
+    # Make S-boxes immutable
+    self.S = tuple(tuple(s) for s in self.S)
     
      
   def _f(self, a, b, c, d):
@@ -347,8 +350,8 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "432193B78951FC98"
     """
-    st = self._LR_STRUCTS[byte_order]
-    return st.pack(*self._encrypt(*st.unpack(block)))
+    lr_struct = self._LR_STRUCTS[byte_order]
+    return lr_struct.pack(*self._encrypt(*lr_struct.unpack(block)))
   
   def decrypt_block(self, block, byte_order = "big"):
     """
@@ -372,14 +375,26 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "0756D8E0774761D2"
     """
-    st = self._LR_STRUCTS[byte_order]
-    return st.pack(*self._decrypt(*st.unpack(block)))
+    lr_struct = self._LR_STRUCTS[byte_order]
+    return lr_struct.pack(*self._decrypt(*lr_struct.unpack(block)))
     
+  def encrypt_ecb(self, data, byte_order = "big"):
+    lr_struct = self._LR_STRUCTS[byte_order]
+    yield from starmap(
+      lr_struct.pack, starmap(self._encrypt, lr_struct.iter_unpack(data))
+    )
+    
+  def decrypt_ecb(self, data, byte_order = "big"):
+    lr_struct = self._LR_STRUCTS[byte_order]
+    yield from starmap(
+      lr_struct.pack, starmap(self._decrypt, lr_struct.iter_unpack(data))
+    )
     
 if __name__ == "__main__":
   
-  print("Running tests...", end="", flush=True)
+  print("Running tests...")
   
+  print("Testing 'encrypt_block' and 'decrypt_block'...", end="", flush=True)
   # Test vectors from <https://www.schneier.com/code/vectors.txt>
   test_blocks = (
     # key                 clear text          cipher text
@@ -447,7 +462,7 @@ if __name__ == "__main__":
         test_clear_text,
         clear_text
       )
-  print("Success!\n")
+  print("Success!")
   
   class Timer(object):
     def __init__(self, clock):
@@ -461,22 +476,31 @@ if __name__ == "__main__":
       t = self.clock()
       self.elapsed += t - self._enter_time
   
-  print("Benchmarking...")
   
   import time
-  import random
+  from os import urandom
   
   test_cipher = Cipher(b"this ist a key")  
   
+  print("\nBenchmarking 'encrypt_block'...")
   for _ in range(0, 5):
-    print("encrypt_block...", end="", flush=True)
     timer = Timer(time.perf_counter)
-    for i in range(1, 10001):
-      rand_block = bytes(random.sample(range(0, 256), 8))
+    num_blocks = 10000
+    rand_blocks = urandom(8 * num_blocks)
+    for i in range(0, 8 * num_blocks, 8):
+      rand_block = rand_blocks[i:i+8]
       with timer:
         test_cipher.encrypt_block(rand_block)
-    print("{} random blocks in {:.5f} sec".format(i, timer.elapsed))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
+  print("\nBenchmarking 'encrypt_ecb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    num_blocks = 10000
+    rand_blocks = urandom(8 * num_blocks)
+    with timer:
+      b"".join(test_cipher.encrypt_ecb(rand_blocks))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
   
   
