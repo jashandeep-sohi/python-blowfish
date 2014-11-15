@@ -392,21 +392,26 @@ class Cipher(object):
     
   def encrypt_cbc(self, data, init_vector, byte_order = "big"):
     lr_struct = _LR_STRUCTS[byte_order]
-    prev_l, prev_r = lr_struct.unpack(init_vector)
     
-    for l, r in lr_struct.iter_unpack(data):
-      yield lr_struct.pack(*self._encrypt(l ^ prev_l, r ^ prev_r))
-      prev_l, prev_r = l, r
+    prev_ct_left, prev_ct_right = lr_struct.unpack(init_vector)
+    
+    for pt_left, pt_right in lr_struct.iter_unpack(data):
+      ct_left, ct_right = self._encrypt(
+        pt_left ^ prev_ct_left,
+        pt_right ^ prev_ct_right
+      )
+      yield lr_struct.pack(ct_left, ct_right)
+      prev_ct_left, prev_ct_right = ct_left, ct_right
       
   def decrypt_cbc(self, data, init_vector, byte_order = "big"):
     lr_struct = _LR_STRUCTS[byte_order]
-    prev_l, prev_r = lr_struct.unpack(init_vector)
     
-    for l, r in lr_struct.iter_unpack(data):
-      dl, dr = self._decrypt(l, r)
-      yield lr_struct.pack(dl ^ prev_l, dr ^ prev_r)
-      prev_l, prev_r = l, r
+    prev_ct_left, prev_ct_right = lr_struct.unpack(init_vector)
     
+    for ct_left, ct_right in lr_struct.iter_unpack(data):
+      de_left, de_right = self._decrypt(ct_left, ct_right)
+      yield lr_struct.pack(de_left ^ prev_ct_left, de_right ^ prev_ct_right)
+      prev_ct_left, prev_ct_right = ct_left, ct_right
     
 if __name__ == "__main__":
   
