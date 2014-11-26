@@ -300,14 +300,10 @@ class Cipher(object):
     
     # Make S-boxes immutable
     self.S = tuple(tuple(s) for s in self.S)
-    
-  def _f(self, a, b, c, d):
-    return (((a + b) ^ c) + d) & 0xffffffff
-    
+        
   def _encrypt(self, L, R):
     P = self.P
     S0, S1, S2, S3 = self.S
-    f = self._f
     for p in P[0:-2]:
       L ^= p 
       R ^= (
@@ -323,7 +319,6 @@ class Cipher(object):
   def _decrypt(self, L, R):
     P = self.P
     S0, S1, S2, S3 = self.S
-    f = self._f
     for p in P[-1:1:-1]:
       L ^= p
       R ^= (
