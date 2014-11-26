@@ -37,7 +37,7 @@ respectively::
 from struct import Struct
 from itertools import starmap
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -233,12 +233,6 @@ _PI_S_BOXES = (
   ),
 )
 
-_LR_STRUCTS = {
-  "big": Struct(">2I"),
-  "little": Struct("<2I")
-}
-
-
 class Cipher(object):
   """
   Implements the Blowfish block-cipher. You can read more about Blowfish at
@@ -259,9 +253,21 @@ class Cipher(object):
   
   """
     
-  def __init__(self, key, P_array = _PI_P_ARRAY, S_boxes = _PI_S_BOXES):
+  def __init__(self, 
+    key,
+    byte_order = "big",
+    P_array = _PI_P_ARRAY,
+    S_boxes = _PI_S_BOXES
+  ):
     if not 8 <= len(key) <= 56:
       raise ValueError("key size is not between 8 and 56")
+      
+    if byte_order == "big":
+      self._LR_struct = Struct(">2I")
+    elif byte_order == "little":
+      self._LR_struct = Struct("<2I")
+    else:
+      raise ValueError("byte order must either be 'big' or 'little'")
           
     # Copy P array locally
     P = self.P = list(P_array)
@@ -328,7 +334,7 @@ class Cipher(object):
       L, R = R, L
     return R ^ P[0], L ^ P[1]
   
-  def encrypt_block(self, block, byte_order = "big"):
+  def encrypt_block(self, block):
     """
     Return the encrypted ciphertext of a `block` of plaintext as a
     :obj:`bytes` object.
@@ -338,10 +344,6 @@ class Cipher(object):
     8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
     ciphertext will most likely be wrong.
     
-    `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
-    to be changed. By default it's ``"big"``, since that's what most
-    implementations use.
-    
     Example:
       
       >>> import codecs
@@ -350,10 +352,10 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "432193B78951FC98"
     """
-    lr_struct = _LR_STRUCTS[byte_order]
-    return lr_struct.pack(*self._encrypt(*lr_struct.unpack(block)))
+    LR_struct = self._LR_struct
+    return LR_struct.pack(*self._encrypt(*LR_struct.unpack(block)))
   
-  def decrypt_block(self, block, byte_order = "big"):
+  def decrypt_block(self, block):
     """
     Return the decrypted plaintext of a `block` of ciphertext as a
     :obj:`bytes` object.
@@ -363,10 +365,6 @@ class Cipher(object):
     8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
     plaintext will most likely be incorrect.
     
-    `byte_order` can either be ``"big"`` or ``"little"``, but it rarely needs
-    to be changed. By default it's ``"big"``, since that's what most
-    implementations use.
-    
     Example:
       
       >>> import codecs
@@ -375,42 +373,42 @@ class Cipher(object):
       >>> codecs.encode(ct, "hex")
       "0756D8E0774761D2"
     """
-    lr_struct = _LR_STRUCTS[byte_order]
-    return lr_struct.pack(*self._decrypt(*lr_struct.unpack(block)))
+    LR_struct = self._LR_struct
+    return LR_struct.pack(*self._decrypt(*LR_struct.unpack(block)))
     
-  def encrypt_ecb(self, data, byte_order = "big"):
-    lr_struct = _LR_STRUCTS[byte_order]
+  def encrypt_ecb(self, data):
+    LR_struct = self._LR_struct
     yield from starmap(
-      lr_struct.pack, starmap(self._encrypt, lr_struct.iter_unpack(data))
+      LR_struct.pack, starmap(self._encrypt, LR_struct.iter_unpack(data))
     )
     
-  def decrypt_ecb(self, data, byte_order = "big"):
-    lr_struct = _LR_STRUCTS[byte_order]
+  def decrypt_ecb(self, data):
+    LR_struct = self._LR_struct
     yield from starmap(
-      lr_struct.pack, starmap(self._decrypt, lr_struct.iter_unpack(data))
+      LR_struct.pack, starmap(self._decrypt, LR_struct.iter_unpack(data))
     )
     
-  def encrypt_cbc(self, data, init_vector, byte_order = "big"):
-    lr_struct = _LR_STRUCTS[byte_order]
+  def encrypt_cbc(self, data, init_vector):
+    LR_struct = self._LR_struct
     
-    prev_ct_left, prev_ct_right = lr_struct.unpack(init_vector)
+    prev_ct_left, prev_ct_right = LR_struct.unpack(init_vector)
     
-    for pt_left, pt_right in lr_struct.iter_unpack(data):
+    for pt_left, pt_right in LR_struct.iter_unpack(data):
       ct_left, ct_right = self._encrypt(
         pt_left ^ prev_ct_left,
         pt_right ^ prev_ct_right
       )
-      yield lr_struct.pack(ct_left, ct_right)
+      yield LR_struct.pack(ct_left, ct_right)
       prev_ct_left, prev_ct_right = ct_left, ct_right
       
-  def decrypt_cbc(self, data, init_vector, byte_order = "big"):
-    lr_struct = _LR_STRUCTS[byte_order]
+  def decrypt_cbc(self, data, init_vector):
+    LR_struct = self._LR_struct
     
-    prev_ct_left, prev_ct_right = lr_struct.unpack(init_vector)
+    prev_ct_left, prev_ct_right = LR_struct.unpack(init_vector)
     
-    for ct_left, ct_right in lr_struct.iter_unpack(data):
+    for ct_left, ct_right in LR_struct.iter_unpack(data):
       de_left, de_right = self._decrypt(ct_left, ct_right)
-      yield lr_struct.pack(de_left ^ prev_ct_left, de_right ^ prev_ct_right)
+      yield LR_struct.pack(de_left ^ prev_ct_left, de_right ^ prev_ct_right)
       prev_ct_left, prev_ct_right = ct_left, ct_right
     
 if __name__ == "__main__":
