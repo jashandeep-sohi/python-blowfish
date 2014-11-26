@@ -310,12 +310,13 @@ class Cipher(object):
     f = self._f
     for p in P[0:-2]:
       L ^= p 
-      R ^= f(
-        S0[(L >> 24) & 0xff],
-        S1[(L >> 16) & 0xff],
-        S2[(L >> 8) & 0xff],
-        S3[L & 0xff]
-      )
+      R ^= (
+        (
+          (
+            S0[(L >> 24) & 0xff] + S1[(L >> 16) & 0xff]
+          ) ^ S2[(L >> 8) & 0xff]
+        ) + S3[L & 0xff]
+      ) & 0xffffffff
       L, R = R, L
     return R ^ P[-1], L ^ P[-2]
     
@@ -325,12 +326,13 @@ class Cipher(object):
     f = self._f
     for p in P[-1:1:-1]:
       L ^= p
-      R ^= f(
-        S0[(L >> 24) & 0xff],
-        S1[(L >> 16) & 0xff],
-        S2[(L >> 8) & 0xff],
-        S3[L & 0xff]
-      )
+      R ^= (
+        (
+          (
+            S0[(L >> 24) & 0xff] + S1[(L >> 16) & 0xff]
+          ) ^ S2[(L >> 8) & 0xff]
+        ) + S3[L & 0xff]
+      ) & 0xffffffff
       L, R = R, L
     return R ^ P[0], L ^ P[1]
   
