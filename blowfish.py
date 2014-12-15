@@ -14,32 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-r"""
-This module implements Blowfish, a symmetric-key block cipher designed by
-Bruce Schneier. It's implemented entirely in Python, with the only
-dependency being Python 3.4 or higher.
-
-To encrypt or decrypt data, first create a :class:`Cipher` object with a `key`::
-
-  >>> cipher = Cipher(b"this is a test key")
-  
-Then use the methods :method:`Cipher.encrypt_block` and
-:method:`Cipher.decrypt_block` to encrypt or decrypt a block of data,
-respectively::
-
-  >>> cipher.encrypt_block(b"12345678")
-  b"\x1fc\xba\x1eW\xff P"
-  >>> cipher.decrypt_block(cipher.encrypt_block(b"12345678")
-  b"12345678"
-
+"""
 """
 
 from struct import Struct
-from itertools import starmap
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
-# PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
+# _PI_P_ARRAY & _PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
 
 # 1 x 18
@@ -235,25 +217,10 @@ _PI_S_BOXES = (
 
 class Cipher(object):
   """
-  Implements the Blowfish block-cipher. You can read more about Blowfish at
-  <http://en.wikipedia.org/wiki/Block_cipher> and
-  <https://www.schneier.com/blowfish.html>.
-  
-  Each :class:`Cipher` object is created with a `key`, between 8 and 
-  448 bytes, that is used to encrypt or decrypt blocks::
-    
-    >>> c = Cipher(b"12345678")
-  
-  By default, the hexadecimal digits of Pi are used for the initial P array
-  and S-boxes. But if you'd like to experiment these can be changed using the
-  `P_array` and `S_boxes` arguments.
-  
-  Encrypting and decrypting is accomplished by using the
-  :method:`Cipher.encrypt_block` and :method:`Cipher.decrypt_block` methods.
-  
   """
     
-  def __init__(self, 
+  def __init__(
+    self, 
     key,
     byte_order = "big",
     P_array = _PI_P_ARRAY,
@@ -268,6 +235,12 @@ class Cipher(object):
       self._LR_struct = Struct("<2I")
     else:
       raise ValueError("byte order must either be 'big' or 'little'")
+      
+    # Save refs locally to the pack/unpack funcs of the LR struct to speed up
+    # look-ups a little.
+    self._LR_pack = self._LR_struct.pack
+    self._LR_unpack = self._LR_struct.unpack
+    self._LR_iter_unpack = self._LR_struct.iter_unpack
           
     # Copy P array locally
     P = self.P = list(P_array)
@@ -298,12 +271,13 @@ class Cipher(object):
     # Make P array immutable
     self.P = tuple(self.P)
     
+    # For decrypting
+    self.P_reversed = self.P[::-1]
+    
     # Make S-boxes immutable
     self.S = tuple(tuple(s) for s in self.S)
-        
-  def _encrypt(self, L, R):
-    P = self.P
-    S0, S1, S2, S3 = self.S
+  
+  def _cycle(self, L, R, P, S0, S1, S2, S3):
     for p in P[0:-2]:
       L ^= p 
       R ^= (
@@ -314,99 +288,374 @@ class Cipher(object):
         ) + S3[L & 0xff]
       ) & 0xffffffff
       L, R = R, L
-    return R ^ P[-1], L ^ P[-2]
+    return R ^ P[-1], L ^ P[-2]         
+  
+  def _encrypt(self, L, R):
+    return self._cycle(L, R, self.P, *self.S)
     
   def _decrypt(self, L, R):
-    P = self.P
-    S0, S1, S2, S3 = self.S
-    for p in P[-1:1:-1]:
-      L ^= p
-      R ^= (
-        (
-          (
-            S0[(L >> 24) & 0xff] + S1[(L >> 16) & 0xff]
-          ) ^ S2[(L >> 8) & 0xff]
-        ) + S3[L & 0xff]
-      ) & 0xffffffff
-      L, R = R, L
-    return R ^ P[0], L ^ P[1]
+    return self._cycle(L, R, self.P_reversed, *self.S)
   
   def encrypt_block(self, block):
     """
-    Return the encrypted ciphertext of a `block` of plaintext as a
-    :obj:`bytes` object.
-    The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    Return the encrypted value of a `block`.
     
-    `block` should be a :obj:`bytes`-like object with a length of exactly
-    8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
-    ciphertext will most likely be wrong.
-    
-    Example:
-      
-      >>> import codecs
-      >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
-      >>> ct = c.encrypt_block(bytes.from_hex("0756D8E0774761D2"))
-      >>> codecs.encode(ct, "hex")
-      "432193B78951FC98"
+    `block` should be a :obj:`bytes`-like object with a length of exactly 8
+    (i.e. 64 bits).
+    If it is not, a :exc:`struct.error` exception is raised.
     """
-    LR_struct = self._LR_struct
-    return LR_struct.pack(*self._encrypt(*LR_struct.unpack(block)))
+    return self._LR_pack(*self._encrypt(*self._LR_unpack(block)))
   
   def decrypt_block(self, block):
     """
-    Return the decrypted plaintext of a `block` of ciphertext as a
-    :obj:`bytes` object.
-    The returned :obj:`bytes` object is always 8 bytes long (i.e. 64-bits).
+    Return the decrypted value of a `block`.
     
-    `block` should be a :obj:`bytes`-like object with a length of exactly
-    8 bytes (i.e. 64-bits). If it is not, no exception is raised, but the returned
-    plaintext will most likely be incorrect.
-    
-    Example:
-      
-      >>> import codecs
-      >>> c = Cipher(bytes.from_hex("0170F175468FB5E6"))
-      >>> ct = c.decrypt_block(bytes.from_hex("432193B78951FC98"))
-      >>> codecs.encode(ct, "hex")
-      "0756D8E0774761D2"
+    `block` should be a :obj:`bytes`-like object with a length of exactly 8
+    (i.e. 64 bits).
+    If it is not, a :exc:`struct.error` exception is raised.
     """
-    LR_struct = self._LR_struct
-    return LR_struct.pack(*self._decrypt(*LR_struct.unpack(block)))
+    return self._LR_pack(*self._decrypt(*self._LR_unpack(block)))
     
   def encrypt_ecb(self, data):
-    LR_struct = self._LR_struct
-    yield from starmap(
-      LR_struct.pack, starmap(self._encrypt, LR_struct.iter_unpack(data))
-    )
+    """
+    Return an iterator that encrypts `data` using the Electronic Codebook (ECB)
+    mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    for plain_L, plain_R in self._LR_iter_unpack(data):
+      yield pack(*cycle(plain_L, plain_R, P, S0, S1, S2, S3))
     
   def decrypt_ecb(self, data):
-    LR_struct = self._LR_struct
-    yield from starmap(
-      LR_struct.pack, starmap(self._decrypt, LR_struct.iter_unpack(data))
-    )
+    """
+    Return an iterator that decrypts `data` using the Electronic Codebook (ECB)
+    mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the decrypted value of the corresponding block in
+    `data`.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P_reversed = self.P_reversed
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    for cipher_L, cipher_R in self._LR_iter_unpack(data):
+      yield pack(*cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3))
     
   def encrypt_cbc(self, data, init_vector):
-    LR_struct = self._LR_struct
+    """
+    Return an iterator that encrypts `data` using the Cipher-Block Chaining
+    (CBC) mode of operation.
     
-    prev_ct_left, prev_ct_right = LR_struct.unpack(init_vector)
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
     
-    for pt_left, pt_right in LR_struct.iter_unpack(data):
-      ct_left, ct_right = self._encrypt(
-        pt_left ^ prev_ct_left,
-        pt_right ^ prev_ct_right
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    
+    for plain_L, plain_R in self._LR_iter_unpack(data):
+      prev_cipher_L, prev_cihper_R = cycle(
+        prev_cipher_L ^ plain_L,
+        prev_cipher_R ^ plain_R,
+        P,
+        S0, S1, S2, S3
       )
-      yield LR_struct.pack(ct_left, ct_right)
-      prev_ct_left, prev_ct_right = ct_left, ct_right
+      yield pack(prev_cipher_L, prev_cipher_R)
+    
       
   def decrypt_cbc(self, data, init_vector):
-    LR_struct = self._LR_struct
+    """
+    Return an iterator that decrypts `data` using the Cipher-Block Chaining
+    (CBC) mode of operation.
     
-    prev_ct_left, prev_ct_right = LR_struct.unpack(init_vector)
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the decrypted value of the corresponding block in
+    `data`.
     
-    for ct_left, ct_right in LR_struct.iter_unpack(data):
-      de_left, de_right = self._decrypt(ct_left, ct_right)
-      yield LR_struct.pack(de_left ^ prev_ct_left, de_right ^ prev_ct_right)
-      prev_ct_left, prev_ct_right = ct_left, ct_right
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P_reversed = self.P_reversed
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    
+    for cipher_L, cipher_R in self._LR_iter_unpack(data):
+      L, R = cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3)
+      yield pack(prev_cipher_L ^ L, prev_cipher_R ^ R)
+      prev_cipher_L, prev_cipher_R = cipher_L, cipher_R
+  
+  def encrypt_pcbc(self, data, init_vector):
+    """
+    Return an iterator that encrypts `data` using the Propagating Cipher-Block
+    Chaining (PCBC) mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    init_L, init_R = self._LR_unpack(init_vector)
+    
+    for plain_L, plain_R in self._LR_iter_unpack(data):
+      cipher_L, cipher_R = cycle(
+        init_L ^ plain_L,
+        init_R ^ plain_R,
+        P,
+        S0, S1, S2, S3
+      )
+      yield pack(cipher_L, cipher_R)
+      init_L, init_R = plain_L ^ cipher_L, plain_R ^ cipher_R
+    
+  def decrypt_pcbc(self, data, init_vector):
+    """
+    Return an iterator that decrypts `data` using the Propagating Cipher-Block
+    Chaining (PCBC) mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the decrypted value of the corresponding block in
+    `data`.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P_reversed = self.P_reversed
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    init_L, init_R = self._LR_unpack(init_vector)
+    
+    for cipher_L, cipher_R in self._LR_iter_unpack(data):
+      L, R = cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3)
+      plain_L, plain_R = init_L ^ L, init_R ^ R
+      yield pack(plain_L, plain_R)
+      init_L, init_R = cipher_L ^ plain_L, cipher_R ^ plain_R
+    
+  def encrypt_cfb(self, data, init_vector):
+    """
+    Return an iterator that encrypts `data` using the Cipher Feedback (CFB)
+    mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    
+    for plain_L, plain_R in self._LR_iter_unpack(data):
+      L, R = cycle(prev_cipher_L, prev_cipher_R, P, S0, S1, S2, S3)
+      prev_cipher_L, prev_cipher_R = plain_L ^ L, plain_R ^ R
+      yield pack(prev_cipher_L, prev_cipher_R)
+    
+    
+  def decrypt_cfb(self, data, init_vector):
+    """
+    Return an iterator that decrypts `data` using the Cipher Feedback (CFB)
+    mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the decrypted value of the corresponding block in
+    `data`.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    
+    for cipher_L, cipher_R in self._LR_iter_unpack(data):
+      L, R = cycle(prev_cipher_L, prev_cipher_R, P, S0, S1, S2, S3)
+      yield pack(L ^ cipher_L, R ^ cipher_R)
+      prev_cipher_L, prev_cipher_R = cipher_L, cipher_R
+    
+  def encrypt_ofb(self, data, init_vector):
+    """
+    Return an iterator that encrypts `data` using the Output Feedback (OFB)
+    mode of operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with a length of exactly 8.
+    If it is not, a :exc:`struct.error` exception is raised.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    prev_L, prev_R = self._LR_unpack(init_vector)
+    
+    for plain_L, plain_R in self._LR_iter_unpack(data):
+      prev_L, prev_R = cycle(prev_L, prev_R, P, S0, S1, S2, S3)
+      yield pack(plain_L ^ prev_L, plain_R ^ prev_R)
+    
+  def decrypt_ofb(self, data, init_vector):
+    """
+    Return an iterator that decrypts `data` using the Output Feedback (OFB)
+    mode of operation.
+
+    .. note::
+        
+        In OFB mode, decrypting is the same as encrypting.
+        Therefore, calling this function is the same as calling
+        :meth:`encrypt_ofb`.
+        
+    .. seealso::
+
+        :meth:`encrypt_ofb`
+     """
+    return self.encrypt_ofb(data, init_vector)
+      
+  def encrypt_ctr(self, data, counter):
+    """
+    Return an iterator that encrypts `data` using the Counter (CTR) mode of
+    operation.
+    
+    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
+    64 bits) containing the encrypted value of the corresponding block in
+    `data`.
+        
+    `counter` should be an iterable sequence of integers which is guaranteed
+    not to repeat for a long time.
+    It should be at least as long as `data`, otherwise the returned iterator
+    will only encrypt `data` partially, stopping when `counter` is exhausted.
+    A nonce should be used in the `counter` to ensure a unique counter.
+    A good default is implemented by :func:`ctr_counter`.
+    
+    `data` should be a :obj:`bytes`-like object with a length of a multiple
+    of 8 (i.e. 8, 16, 32, etc.)
+    If it is not, a :exc:`struct.error` exception is raised.
+    """
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    pack = self._LR_pack
+    cycle = self._cycle
+    
+    for (plain_L, plain_R), counter_n in zip(
+      self._LR_iter_unpack(data),
+      counter
+    ):
+      L, R = cycle(
+        (counter_n >> 32) & 0xffffffff,
+        counter_n & 0xffffffff,
+        P, S0, S1, S2, S3
+      )
+      yield pack(plain_L ^ L, plain_R ^ R)
+  
+  def decrypt_ctr(self, data, counter):
+    """
+    Return an iterator that decrypts `data` using the Counter (CTR) mode of
+    operation.
+    
+    .. note::
+        
+        In CTR mode, decrypting is the same as encrypting.
+        Therefore, calling this function is the same as calling
+        :meth:`encrypt_ctr`.
+        
+    .. seealso::
+    
+        :meth:`encrypt_ctr`
+    """
+    return self.encrypt_ctr(data, counter)
+    
+def ctr_counter(nonce, f):
+  """
+  Return an infinite iterator that iterates from 0 to 2^32, combining each
+  integer with `nonce` using the function `f` and returning the result.
+  
+  `nonce` should be an random integer that is used to make the counter unique.
+  
+  `f` should be a function that takes two integers, the first being the
+  `nonce`, and combines the two in a lossless manner (i.e. xor, addition, etc.).
+  """
+  while True:
+    for n in range(0, 2**32):
+      yield f(nonce, n)
+    
     
 if __name__ == "__main__":
   
@@ -497,6 +746,7 @@ if __name__ == "__main__":
   
   import time
   from os import urandom
+  import operator
   
   test_cipher = Cipher(b"this ist a key")  
   
@@ -511,12 +761,28 @@ if __name__ == "__main__":
       with timer:
         test_cipher.encrypt_block(rand_block)
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_block'...")
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    for i in range(0, 8 * num_blocks, 8):
+      rand_block = rand_blocks[i:i+8]
+      with timer:
+        test_cipher.decrypt_block(rand_block)
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
   print("\nBenchmarking 'encrypt_ecb'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
     with timer:
       b"".join(test_cipher.encrypt_ecb(rand_blocks))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_ecb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_ecb(rand_blocks))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
     
   print("\nBenchmarking 'encrypt_cbc'...")  
@@ -532,7 +798,69 @@ if __name__ == "__main__":
     with timer:
       b"".join(test_cipher.decrypt_cbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'encrypt_pcbc'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_pcbc(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_pcbc'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_pcbc(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'encrypt_cfb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_cfb(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_cfb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_cfb(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
-  
-  
+  print("\nBenchmarking 'encrypt_ofb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_ofb(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_ofb'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_ofb(rand_blocks, b"12345678"))
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'encrypt_ctr'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_ctr(
+          rand_blocks,
+          ctr_counter(412232, operator.xor)
+        )
+      )
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nBenchmarking 'decrypt_ctr'...")  
+  for _ in range(0, 5):
+    timer = Timer(time.perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_ctr(
+          rand_blocks,
+          ctr_counter(412232, operator.xor)
+        )
+      )
+    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+     
 # vim: tabstop=2 expandtab
