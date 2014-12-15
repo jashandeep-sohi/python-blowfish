@@ -5,16 +5,16 @@ from os import urandom
 import operator
 
 class Timer(object):
-    def __init__(self, clock):
-      self.clock = clock
-      self.elapsed = 0
-      
-    def __enter__(self):
-      self._enter_time = self.clock()
-      
-    def __exit__(self, exc_type, exc_value, traceback):
-      t = self.clock()
-      self.elapsed += t - self._enter_time
+  def __init__(self, clock):
+    self.clock = clock
+    self.elapsed = 0
+    
+  def __enter__(self):
+    self._enter_time = self.clock()
+    
+  def __exit__(self, exc_type, exc_value, traceback):
+    t = self.clock()
+    self.elapsed += t - self._enter_time
 
 if __name__ == "__main__":
   
