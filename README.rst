@@ -1,16 +1,26 @@
 blowfish
 ========
-A Python module implementing Blowfish, a symmetric-key block cipher designed
-by Bruce Schneier. Implemented entirely in Python.
+Fast, efficient Blowfish block cipher implementation in pure Python (3.4+).
 
 Dependencies
 ------------
 - Python 3.4+
 
+Features
+--------
+- Fast (well, as fast you can possibly go using only Python 3.4+)
+- Efficient; generators/iterators are used liberally to reduce memory usage
+- Electronic Codebook (ECB) mode
+- Cipher-Block Chaining (CBC) mode
+- Propagating Cipher-Block Chaining (PCBC) mode
+- Cipher Feedback (CFB) mode
+- Output Feedback (OFB) mode
+- Counter (CTR) mode
+
 Installation
 ------------
 If you just need a Blowfish cipher in your Python project, feel free to
-manually copy the ``blowfish.py`` file to your package directory.
+manually copy ``blowfish.py`` to your package directory (license permitting).
 
 However, if you'd like to install the module to your Python distribution, use
 the included `distutils` script::
@@ -29,8 +39,5 @@ Usage
     plaintext = cipher.decrypt_block(ciphertext)
     assert plaintext == b"12345678"
 
-TODO
-----
-- Implement common modes of operation (ECB, CBC, etc.)
 
 .. vim: tabstop=2 expandtab
