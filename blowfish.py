@@ -621,7 +621,7 @@ class Cipher(object):
     extra_bytes = len(data) % 8
     
     for (plain_L, plain_R), counter_n in zip(
-      self._LR_iter_unpack(data[0:-extra_bytes]),
+      self._LR_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
       L, R = cycle(
