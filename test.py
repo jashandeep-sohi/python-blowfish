@@ -181,24 +181,27 @@ if __name__ == "__main__":
       b"".join(test_cipher.decrypt_ofb(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
     
+  
+  ctr_rand_bytes = urandom(8 * num_blocks + 7)
+  
   print("\nBenchmarking 'encrypt_ctr'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
     with timer:
       b"".join(test_cipher.encrypt_ctr(
-          rand_blocks,
+          ctr_rand_bytes,
           blowfish.ctr_counter(412232, operator.xor)
         )
       )
-    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    print("{} random bytes in {:.5f} sec".format(len(ctr_rand_bytes), timer.elapsed))
     
   print("\nBenchmarking 'decrypt_ctr'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
     with timer:
       b"".join(test_cipher.decrypt_ctr(
-          rand_blocks,
+          ctr_rand_bytes,
           blowfish.ctr_counter(412232, operator.xor)
         )
       )
-    print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    print("{} random bytes in {:.5f} sec".format(len(ctr_rand_bytes), timer.elapsed))
