@@ -17,9 +17,7 @@ class Timer(object):
     self.elapsed += t - self._enter_time
 
 if __name__ == "__main__":
-  
-  print("Running tests...")
-  
+    
   print("Testing 'encrypt_block' and 'decrypt_block'...", end="", flush=True)
   # Test vectors from <https://www.schneier.com/code/vectors.txt>
   test_blocks = (
@@ -89,7 +87,7 @@ if __name__ == "__main__":
   print("Success!")
   
   test_cipher = blowfish.Cipher(b"this ist a key")  
-  
+    
   num_blocks = 10000
   rand_blocks = urandom(8 * num_blocks)
   
@@ -111,6 +109,14 @@ if __name__ == "__main__":
         test_cipher.decrypt_block(rand_block)
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
   
+  print("\nTesting 'encrypt_ecb' and 'decrypt_ecb'...", end="", flush=True)
+  assert rand_blocks == b"".join(
+    test_cipher.decrypt_ecb(
+      b"".join(test_cipher.encrypt_ecb(rand_blocks))
+    )
+  )
+  print("Success!")
+  
   print("\nBenchmarking 'encrypt_ecb'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
@@ -125,6 +131,15 @@ if __name__ == "__main__":
       b"".join(test_cipher.decrypt_ecb(rand_blocks))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
     
+  print("\nTesting 'encrypt_cbc' and 'decrypt_cbc'...", end="", flush=True)
+  assert rand_blocks == b"".join(
+    test_cipher.decrypt_cbc(
+      b"".join(test_cipher.encrypt_cbc(rand_blocks, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
+  
   print("\nBenchmarking 'encrypt_cbc'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
@@ -138,6 +153,15 @@ if __name__ == "__main__":
     with timer:
       b"".join(test_cipher.decrypt_cbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+    
+  print("\nTesting 'encrypt_pcbc' and 'decrypt_pcbc'...", end="", flush=True)
+  assert rand_blocks == b"".join(
+    test_cipher.decrypt_pcbc(
+      b"".join(test_cipher.encrypt_pcbc(rand_blocks, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
     
   print("\nBenchmarking 'encrypt_pcbc'...")  
   for _ in range(0, 5):
@@ -153,6 +177,15 @@ if __name__ == "__main__":
       b"".join(test_cipher.decrypt_pcbc(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
     
+  print("\nTesting 'encrypt_cfb' and 'decrypt_cfb'...", end="", flush=True)
+  assert rand_blocks == b"".join(
+    test_cipher.decrypt_cfb(
+      b"".join(test_cipher.encrypt_cfb(rand_blocks, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
+  
   print("\nBenchmarking 'encrypt_cfb'...")  
   for _ in range(0, 5):
     timer = Timer(time.perf_counter)
@@ -166,6 +199,15 @@ if __name__ == "__main__":
     with timer:
       b"".join(test_cipher.decrypt_cfb(rand_blocks, b"12345678"))
     print("{} random blocks in {:.5f} sec".format(num_blocks, timer.elapsed))
+  
+  print("\nTesting 'encrypt_ofb' and 'decrypt_ofb'...", end="", flush=True)
+  assert rand_blocks == b"".join(
+    test_cipher.decrypt_ofb(
+      b"".join(test_cipher.encrypt_ofb(rand_blocks, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
   
   print("\nBenchmarking 'encrypt_ofb'...")  
   for _ in range(0, 5):
@@ -183,6 +225,18 @@ if __name__ == "__main__":
     
   
   ctr_rand_bytes = urandom(8 * num_blocks + 7)
+  
+  print("\nTesting 'encrypt_ctr' and 'decrypt_ctr'...", end="", flush=True)
+  assert ctr_rand_bytes == b"".join(
+    test_cipher.decrypt_ctr(
+      b"".join(test_cipher.encrypt_ctr(
+        ctr_rand_bytes,
+        blowfish.ctr_counter(412232, operator.xor)
+      )),
+      blowfish.ctr_counter(412232, operator.xor)
+    )
+  )
+  print("Success!")
   
   print("\nBenchmarking 'encrypt_ctr'...")  
   for _ in range(0, 5):
