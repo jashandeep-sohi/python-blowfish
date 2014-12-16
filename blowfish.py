@@ -384,7 +384,7 @@ class Cipher(object):
     prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
     
     for plain_L, plain_R in self._LR_iter_unpack(data):
-      prev_cipher_L, prev_cihper_R = cycle(
+      prev_cipher_L, prev_cipher_R = cycle(
         prev_cipher_L ^ plain_L,
         prev_cipher_R ^ plain_R,
         P,
