@@ -18,6 +18,7 @@
 """
 
 from struct import Struct
+from operator import xor as op_xor
 
 __version__ = "0.3.2"
 
@@ -594,30 +595,33 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Counter (CTR) mode of
     operation.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes or
-    64 bits) containing the encrypted value of the corresponding block in
-    `data`.
+    Each iteration, except the last, always returns a block sized :obj:`bytes`
+    object (i.e. 8 bytes or 64 bits) containing the encrypted value of the
+    corresponding block in `data`. The last iteration may return a :obj:`bytes`
+    object with a length less than the block size, since in CTR mode `data`
+    does not have to be an exact multiple of the block size.
         
     `counter` should be an iterable sequence of integers which is guaranteed
     not to repeat for a long time.
     It should be at least as long as `data`, otherwise the returned iterator
     will only encrypt `data` partially, stopping when `counter` is exhausted.
-    Only the lower 64 bits of each integer are used because Blowfish has a
+    Although there is no upper limit to the integers allowed in the sequence,
+    only the lower 64 bits of each integer are used because Blowfish has a
     64 bit block size.
     A nonce should be used in the `counter` to ensure a unique counter.
     A good default is implemented by :func:`ctr_counter`.
     
-    `data` should be a :obj:`bytes`-like object with a length of a multiple
-    of 8 (i.e. 8, 16, 32, etc.)
-    If it is not, a :exc:`struct.error` exception is raised.
+    `data` should be a :obj:`bytes`-like object (with any length).
     """
     S0, S1, S2, S3 = self.S
     P = self.P
     pack = self._LR_pack
     cycle = self._cycle
     
+    extra_bytes = len(data) % 8
+    
     for (plain_L, plain_R), counter_n in zip(
-      self._LR_iter_unpack(data),
+      self._LR_iter_unpack(data[0:-extra_bytes]),
       counter
     ):
       L, R = cycle(
@@ -626,7 +630,30 @@ class Cipher(object):
         P, S0, S1, S2, S3
       )
       yield pack(plain_L ^ L, plain_R ^ R)
-  
+      
+    if extra_bytes:
+      counter_n = next(counter)
+      L, R = cycle(
+        (counter_n >> 32) & 0xffffffff,
+        counter_n & 0xffffffff,
+        P, S0, S1, S2, S3
+      )
+      yield bytes(
+        map(
+          op_xor,
+          data[-extra_bytes:],
+          (
+            L >> 24,
+            (L >> 16) & 0xff,
+            (L >> 8) & 0xff,
+            L & 0xff,
+            R >> 24,
+            (R >> 16) & 0xff,
+            (R >> 8) & 0xff
+          )
+        )
+      )
+      
   def decrypt_ctr(self, data, counter):
     """
     Return an iterator that decrypts `data` using the Counter (CTR) mode of
@@ -657,5 +684,5 @@ def ctr_counter(nonce, f):
   while True:
     for n in range(0, 2**32):
       yield f(nonce, n)
-             
+      
 # vim: tabstop=2 expandtab
