@@ -832,7 +832,7 @@ def ctr_counter(nonce, f, start = 0):
   """
   Return an infinite iterator that starts at `start` and iterates over integers
   between 0 to 2^64 - 1, endlessly combining each integer with the `nonce`
-  using function `f` and returning the result.
+  by using function `f` and returning the result.
   
   `nonce` should be an random integer that is used to make the counter unique.
   
