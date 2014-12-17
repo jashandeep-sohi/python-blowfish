@@ -15,12 +15,17 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 """
+This module implements the Blowfish cipher using only Python (3.4+).
+
+Blowfish is a block cipher created by Bruce Schneier. It's fast, free and
+secure. More at <https://www.schneier.com/blowfish.html>.
+
+All of the cipher logic is implemented by the :class:`Cipher` class.
 """
 
 from struct import Struct
-from operator import xor as op_xor
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 # _PI_P_ARRAY & _PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -218,6 +223,66 @@ _PI_S_BOXES = (
 
 class Cipher(object):
   """
+  Blowfish block cipher.
+  
+  Instantiate
+  -----------
+  `key` should be a :obj:`bytes` object with a length between 8 and 56 bytes.
+  
+  `byte_order` can either be ``"big"`` or ``"little"``. The default value of
+  ``"big"`` rarely needs to be changed, since most implementations of Blowfish
+  use big endian byte order to convert the bytes into numbers to perform the
+  mathematical operations.
+  
+  `P_array` and `S_boxes` are the initial P array and substitution boxes used
+  to derive the key dependent P array and S-boxes. By default these are set to
+  the digits of pi (in hexadecimal).
+  If you would like to experiment with your own values (and you know what you
+  are doing!), then `P_array` should be a 1D sequence of integers and `S_boxes`
+  should be a 4 x 256 2D sequence of integers.
+  `P_array` can be an arbitrary length, which determines how many rounds of
+  Blowfish are done per encryption per block.
+  
+
+  Encryption & Decryption
+  -----------------------
+  Blowfish is a block cipher with a block size of 64-bits. As such, encryption
+  and decryption are only done on 64-bits of data.
+  
+  To encrypt and decrypt a single block of data use the :meth:`encrypt_block`
+  and :meth:`decrypt_block` methods.
+  
+  Usually, you'll want to use a mode of operation to encrypt or decrypt
+  data. So far the following modes of operations have been implemented.
+  
+  +---------------------------+----------------------+----------------------+
+  | Mode of Operation         | Encryption           | Decryption           |
+  +===========================+======================+======================+
+  | Electronic Codebook (ECB) | :meth:`encrypt_ecb`  | :meth:`decrypt_ecb`  |
+  +---------------------------+----------------------+----------------------+
+  | Cipher-Block Chaining     | :meth:`encrypt_cbc`  | :meth:`decrypt_cbc`  |
+  | (CBC)                     |                      |                      |
+  +---------------------------+----------------------+----------------------+
+  | Propagating Cipher-Block  | :meth:`encrypt_pcbc` | :meth:`decrypt_pcbc` |
+  | Chaining (PCBC)           |                      |                      |
+  +---------------------------+----------------------+----------------------+
+  | Cipher Feedback (CFB)     | :meth:`encrypt_cfb`  | :meth:`decrypt_cfb`  |
+  +---------------------------+----------------------+----------------------+
+  | Output Feedback (OFB)     | :meth:`encrypt_ofb`  | :meth:`decrypt_ofb`  |
+  +---------------------------+----------------------+----------------------+
+  | Counter (CTR)             | :meth:`encrypt_ctr`  | :meth:`decrypt_ctr`  |
+  +---------------------------+----------------------+----------------------+
+  
+  All of the modes, except for CTR, expect that the data given to them have a
+  size a multiple of the block size (i.e. 64-bits, 128-bits, etc).
+  Non-block-multiple data can be used if it is padded properly. Currently,
+  padding logic is not implemented by this module, so you are responsible for
+  the padding.
+  
+  .. warning::
+      
+      Some modes have weaknesses and quirks, so please read up on them before
+      using them. If you can't be bothered, stick with CTR.
   """
     
   def __init__(
@@ -230,24 +295,39 @@ class Cipher(object):
     if not 8 <= len(key) <= 56:
       raise ValueError("key size is not between 8 and 56")
       
+    # Create Structs
     if byte_order == "big":
-      self._LR_struct = Struct(">2I")
+      self._u4_2_struct = Struct(">2I")
+      self._u4_1_struct = Struct(">I")
+      self._u8_1_struct = Struct(">Q")
     elif byte_order == "little":
-      self._LR_struct = Struct("<2I")
+      self._u4_2_struct = Struct("<2I")
+      self._u4_1_struct = Struct("<I")
+      self._u8_1_struct = Struct("<Q")
     else:
       raise ValueError("byte order must either be 'big' or 'little'")
+    
+    self._u1_4_struct = Struct("=4B")
+    self._u1_1_struct = Struct("=B")
       
-    # Save refs locally to the pack/unpack funcs of the LR struct to speed up
+    # Save refs locally to the pack/unpack funcs of the structs to speed up
     # look-ups a little.
-    self._LR_pack = self._LR_struct.pack
-    self._LR_unpack = self._LR_struct.unpack
-    self._LR_iter_unpack = self._LR_struct.iter_unpack
+    self._u4_2_pack = self._u4_2_struct.pack
+    self._u4_2_unpack = self._u4_2_struct.unpack
+    self._u4_2_iter_unpack = self._u4_2_struct.iter_unpack
+    
+    self._u4_1_pack = self._u4_1_struct.pack
+    self._u1_4_unpack = self._u1_4_struct.unpack
+    
+    self._u8_1_pack = self._u8_1_struct.pack
+    
+    self._u1_1_iter_unpack = self._u1_1_struct.iter_unpack
           
     # Copy P array locally
-    P = self.P = list(P_array)
+    P = list(P_array)
     
     # Copy S-boxes locally
-    S = self.S = list(list(box) for box in S_boxes)
+    S = list(list(box[0:256]) for box in S_boxes[0:4])
 
     # Generate subkey P array
     j = 0
@@ -260,42 +340,57 @@ class Cipher(object):
         
     L, R = 0x00000000, 0x00000000
     for i in range(0, len(P), 2):
-      L, R = self._encrypt(L, R)
+      L, R = self._cycle(L, R, P, *S)
       P[i], P[i + 1] = L, R
         
     # Generate subkey S-boxes
     for box in S:
       for j in range(0, 256, 2):
-        L, R = self._encrypt(L, R)
+        L, R = self._cycle(L, R, P, *S)
         box[j], box[j + 1] = L, R
     
     # Make P array immutable
-    self.P = tuple(self.P)
+    self.P = tuple(P)
     
-    # For decrypting
+    # Store a reversed copy for decrypting
     self.P_reversed = self.P[::-1]
     
     # Make S-boxes immutable
-    self.S = tuple(tuple(s) for s in self.S)
-  
+    self.S = tuple(tuple(s) for s in S)
+      
   def _cycle(self, L, R, P, S0, S1, S2, S3):
+    return self._cycle_fast(
+      L,
+      R,
+      P, S0, S1, S2, S3,
+      self._u1_4_unpack, self._u4_1_pack
+    )
+    
+  def _cycle_fast(self, L, R, P, S0, S1, S2, S3, u1_4_unpack, u4_1_pack):
     for p in P[0:-2]:
-      L ^= p 
-      R ^= (
-        (
-          (
-            S0[(L >> 24) & 0xff] + S1[(L >> 16) & 0xff]
-          ) ^ S2[(L >> 8) & 0xff]
-        ) + S3[L & 0xff]
-      ) & 0xffffffff
+      L ^= p
+      a, b, c, d = u1_4_unpack(u4_1_pack(L))
+      R ^= (((S0[a] + S1[b]) ^ S2[c]) + S3[d]) & 0xffffffff
       L, R = R, L
-    return R ^ P[-1], L ^ P[-2]         
+    return R ^ P[-1], L ^ P[-2]
   
   def _encrypt(self, L, R):
-    return self._cycle(L, R, self.P, *self.S)
+    S0, S1, S2, S3 = self.S
+    return self._cycle_fast(
+      L,
+      R,
+      self.P, S0, S1, S2, S3,
+      self._u1_4_unpack, self._u4_1_pack
+    )
     
   def _decrypt(self, L, R):
-    return self._cycle(L, R, self.P_reversed, *self.S)
+    S0, S1, S2, S3 = self.S
+    return self._cycle_fast(
+      L,
+      R,
+      self.P_reversed, S0, S1, S2, S3,
+      self._u1_4_unpack, self._u4_1_pack
+    )
   
   def encrypt_block(self, block):
     """
@@ -305,7 +400,7 @@ class Cipher(object):
     (i.e. 64 bits).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    return self._LR_pack(*self._encrypt(*self._LR_unpack(block)))
+    return self._u4_2_pack(*self._encrypt(*self._u4_2_unpack(block)))
   
   def decrypt_block(self, block):
     """
@@ -313,9 +408,9 @@ class Cipher(object):
     
     `block` should be a :obj:`bytes`-like object with a length of exactly 8
     (i.e. 64 bits).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`struct.error` exception is raised.      
     """
-    return self._LR_pack(*self._decrypt(*self._LR_unpack(block)))
+    return self._u4_2_pack(*self._decrypt(*self._u4_2_unpack(block)))
     
   def encrypt_ecb(self, data):
     """
@@ -332,11 +427,20 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    for plain_L, plain_R in self._LR_iter_unpack(data):
-      yield pack(*cycle(plain_L, plain_R, P, S0, S1, S2, S3))
+    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+      yield u4_2_pack(
+        *cycle_fast(
+          plain_L,
+          plain_R,
+          P, S0, S1, S2, S3,
+          u1_4_unpack, u4_1_pack
+        )
+      )
     
   def decrypt_ecb(self, data):
     """
@@ -353,11 +457,21 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P_reversed = self.P_reversed
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    for cipher_L, cipher_R in self._LR_iter_unpack(data):
-      yield pack(*cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3))
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+      yield u4_2_pack(
+        *cycle_fast(
+          cipher_L,
+          cipher_R,
+          P_reversed,
+          S0, S1, S2, S3,
+          u1_4_unpack, u4_1_pack
+        )
+      )
     
   def encrypt_cbc(self, data, init_vector):
     """
@@ -378,19 +492,23 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._LR_iter_unpack(data):
-      prev_cipher_L, prev_cipher_R = cycle(
+    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+      prev_cipher_L, prev_cipher_R = cycle_fast(
         prev_cipher_L ^ plain_L,
         prev_cipher_R ^ plain_R,
         P,
-        S0, S1, S2, S3
+        S0, S1, S2, S3,
+        u1_4_unpack,
+        u4_1_pack
       )
-      yield pack(prev_cipher_L, prev_cipher_R)
+      yield u4_2_pack(prev_cipher_L, prev_cipher_R)
     
       
   def decrypt_cbc(self, data, init_vector):
@@ -412,14 +530,21 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P_reversed = self.P_reversed
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for cipher_L, cipher_R in self._LR_iter_unpack(data):
-      L, R = cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3)
-      yield pack(prev_cipher_L ^ L, prev_cipher_R ^ R)
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+      L, R = cycle_fast(
+        cipher_L,
+        cipher_R,
+        P_reversed, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
+      )
+      yield u4_2_pack(prev_cipher_L ^ L, prev_cipher_R ^ R)
       prev_cipher_L, prev_cipher_R = cipher_L, cipher_R
   
   def encrypt_pcbc(self, data, init_vector):
@@ -441,19 +566,22 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    init_L, init_R = self._LR_unpack(init_vector)
+    init_L, init_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._LR_iter_unpack(data):
-      cipher_L, cipher_R = cycle(
+    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+      cipher_L, cipher_R = cycle_fast(
         init_L ^ plain_L,
         init_R ^ plain_R,
         P,
-        S0, S1, S2, S3
+        S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
       )
-      yield pack(cipher_L, cipher_R)
+      yield u4_2_pack(cipher_L, cipher_R)
       init_L, init_R = plain_L ^ cipher_L, plain_R ^ cipher_R
     
   def decrypt_pcbc(self, data, init_vector):
@@ -475,15 +603,22 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P_reversed = self.P_reversed
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    init_L, init_R = self._LR_unpack(init_vector)
+    init_L, init_R = self._u4_2_unpack(init_vector)
     
-    for cipher_L, cipher_R in self._LR_iter_unpack(data):
-      L, R = cycle(cipher_L, cipher_R, P_reversed, S0, S1, S2, S3)
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+      L, R = cycle_fast(
+        cipher_L,
+        cipher_R,
+        P_reversed, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
+      )
       plain_L, plain_R = init_L ^ L, init_R ^ R
-      yield pack(plain_L, plain_R)
+      yield u4_2_pack(plain_L, plain_R)
       init_L, init_R = cipher_L ^ plain_L, cipher_R ^ plain_R
     
   def encrypt_cfb(self, data, init_vector):
@@ -505,15 +640,22 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._LR_iter_unpack(data):
-      L, R = cycle(prev_cipher_L, prev_cipher_R, P, S0, S1, S2, S3)
+    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+      L, R = cycle_fast(
+        prev_cipher_L,
+        prev_cipher_R,
+        P, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
+      )
       prev_cipher_L, prev_cipher_R = plain_L ^ L, plain_R ^ R
-      yield pack(prev_cipher_L, prev_cipher_R)
+      yield u4_2_pack(prev_cipher_L, prev_cipher_R)
     
     
   def decrypt_cfb(self, data, init_vector):
@@ -535,14 +677,21 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    prev_cipher_L, prev_cipher_R = self._LR_unpack(init_vector)
+    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for cipher_L, cipher_R in self._LR_iter_unpack(data):
-      L, R = cycle(prev_cipher_L, prev_cipher_R, P, S0, S1, S2, S3)
-      yield pack(L ^ cipher_L, R ^ cipher_R)
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+      L, R = cycle_fast(
+        prev_cipher_L,
+        prev_cipher_R,
+        P, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
+      )
+      yield u4_2_pack(L ^ cipher_L, R ^ cipher_R)
       prev_cipher_L, prev_cipher_R = cipher_L, cipher_R
     
   def encrypt_ofb(self, data, init_vector):
@@ -564,14 +713,21 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
     
-    prev_L, prev_R = self._LR_unpack(init_vector)
+    prev_L, prev_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._LR_iter_unpack(data):
-      prev_L, prev_R = cycle(prev_L, prev_R, P, S0, S1, S2, S3)
-      yield pack(plain_L ^ prev_L, plain_R ^ prev_R)
+    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+      prev_L, prev_R = cycle_fast(
+        prev_L,
+        prev_R,
+        P, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
+      )
+      yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
     
   def decrypt_ofb(self, data, init_vector):
     """
@@ -603,54 +759,55 @@ class Cipher(object):
         
     `counter` should be an iterable sequence of integers which is guaranteed
     not to repeat for a long time.
+    You are responsible for using a nonce in the `counter` to make it unique.
     It should be at least as long as `data`, otherwise the returned iterator
     will only encrypt `data` partially, stopping when `counter` is exhausted.
-    Although there is no upper limit to the integers allowed in the sequence,
-    only the lower 64 bits of each integer are used because Blowfish has a
-    64 bit block size.
-    A nonce should be used in the `counter` to ensure a unique counter.
-    A good default is implemented by :func:`ctr_counter`.
+    As Blowfish has a 64 bit block size, the integers must be less than 2**64.
+    If they are not a :exc:`struct.error` exception is raised.
+    A good default is implemented by :func:`blowfish.ctr_counter`.
     
     `data` should be a :obj:`bytes`-like object (with any length).
     """
     S0, S1, S2, S3 = self.S
     P = self.P
-    pack = self._LR_pack
-    cycle = self._cycle
+    u4_2_pack = self._u4_2_pack
+    u4_2_unpack = self._u4_2_unpack
+    cycle_fast = self._cycle_fast
+    u1_4_unpack = self._u1_4_unpack
+    u4_1_pack = self._u4_1_pack
+    u8_1_pack = self._u8_1_pack
     
     extra_bytes = len(data) % 8
     
     for (plain_L, plain_R), counter_n in zip(
-      self._LR_iter_unpack(data[0:len(data) - extra_bytes]),
+      self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
-      L, R = cycle(
-        (counter_n >> 32) & 0xffffffff,
-        counter_n & 0xffffffff,
-        P, S0, S1, S2, S3
+      counter_L, counter_R = u4_2_unpack(
+        u8_1_pack(counter_n)
+      ) 
+      L, R = cycle_fast(
+        counter_L,
+        counter_R,
+        P, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
       )
-      yield pack(plain_L ^ L, plain_R ^ R)
+      yield u4_2_pack(plain_L ^ L, plain_R ^ R)
       
     if extra_bytes:
-      counter_n = next(counter)
-      L, R = cycle(
-        (counter_n >> 32) & 0xffffffff,
-        counter_n & 0xffffffff,
-        P, S0, S1, S2, S3
+      counter_L, counter_R = u4_2_unpack(
+        u8_1_pack(next(counter))
+      )
+      L, R = cycle_fast(
+        counter_L,
+        counter_R,
+        P, S0, S1, S2, S3,
+        u1_4_unpack, u4_1_pack
       )
       yield bytes(
-        map(
-          op_xor,
+        b ^ n for b, (n,) in zip(
           data[-extra_bytes:],
-          (
-            L >> 24,
-            (L >> 16) & 0xff,
-            (L >> 8) & 0xff,
-            L & 0xff,
-            R >> 24,
-            (R >> 16) & 0xff,
-            (R >> 8) & 0xff
-          )
+          self._u1_1_iter_unpack(u4_2_pack(L, R))
         )
       )
       
@@ -671,18 +828,24 @@ class Cipher(object):
     """
     return self.encrypt_ctr(data, counter)
     
-def ctr_counter(nonce, f):
+def ctr_counter(nonce, f, start = 0):
   """
-  Return an infinite iterator that iterates from 0 to 2^32, combining each
-  integer with `nonce` using the function `f` and returning the result.
+  Return an infinite iterator that starts at `start` and iterates over integers
+  between 0 to 2^64 - 1, endlessly combining each integer with the `nonce`
+  using function `f` and returning the result.
   
   `nonce` should be an random integer that is used to make the counter unique.
   
   `f` should be a function that takes two integers, the first being the
   `nonce`, and combines the two in a lossless manner (i.e. xor, addition, etc.).
+  
+  `start` is from where the counter should start. Regardless of where the
+  counter starts from, after reaching 2^64 - 1 the counter wraps around to 0.
   """
+  for n in range(start, 2**64):
+    yield f(nonce, n)
   while True:
-    for n in range(0, 2**32):
+    for n in range(0, 2**64):
       yield f(nonce, n)
       
 # vim: tabstop=2 expandtab
