@@ -14,15 +14,20 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from blowfish import __version__, __doc__
+from blowfish import __version__
 from distutils.core import setup
 
 if __name__ == "__main__":
+  try:
+    long_desc = open("./README.rst", "r").read()
+  except:
+    long_desc = ""
   setup(
     name = "blowfish",
     version = __version__,
-    description = "A pure Python implementation of Blowfish, a symmetric-key block cipher.",
-    long_description  = __doc__,
+    description = "Fast, efficient Blowfish cipher implementation in pure "
+                  "Python (3.4+).",
+    long_description  = long_desc,
     author = "Jashandeep Sohi",
     author_email = "jashandeep.s.sohi@gmail.com",
     url = "https://github.com/jashandeep-sohi/python-blowfish",
