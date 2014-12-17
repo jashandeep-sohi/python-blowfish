@@ -18,7 +18,7 @@
 This module implements the Blowfish cipher using only Python (3.4+).
 
 Blowfish is a block cipher created by Bruce Schneier. It's fast, free and
-secure. More at <https://www.schneier.com/blowfish.html>.
+well tested. More at <https://www.schneier.com/blowfish.html>.
 
 All of the cipher logic is implemented by the :class:`Cipher` class.
 """
@@ -241,7 +241,7 @@ class Cipher(object):
   are doing!), then `P_array` should be a 1D sequence of integers and `S_boxes`
   should be a 4 x 256 2D sequence of integers.
   `P_array` can be an arbitrary length, which determines how many rounds of
-  Blowfish are done per encryption per block.
+  Blowfish are done per block.
   
 
   Encryption & Decryption
