@@ -1,6 +1,10 @@
 blowfish
 ========
-Fast, efficient Blowfish block cipher implementation in pure Python (3.4+).
+Fast, efficient Blowfish cipher implementation in pure Python (3.4+).
+
+.. contents:: Contents
+    :local:
+    :backlinks: top
 
 Dependencies
 ------------
@@ -22,22 +26,51 @@ Installation
 If you just need a Blowfish cipher in your Python project, feel free to
 manually copy ``blowfish.py`` to your package directory (license permitting).
 
-However, if you'd like to install the module to your Python distribution, use
-the included `distutils` script::
+distutils
+#########
+To install the module to your Python distribution, use the included
+`distutils` script::
 
   $ python setup.py install
+  
+pip
+####
+Stable versions can be installed from `pypi`_ using `pip`::
+  
+  $ pip install blowfish
+  
+`pip` can also install the latest development version directly from `git`::
+  
+  $ pip install 'git+https://github.com/jashandeep-sohi/python-blowfish.git'
+  
+.. _pypi: https://pypi.python.org/pypi/blowfish
+
+Development
+-----------
+Want to add a mode of operation? Speed up encryption?
+
+Make your changes to a clone of the repository at
+https://github.com/jashandeep-sohi/python-blowfish
+and send me a pull request.
+
+Bugs
+----
+Are you having problems? Please let me know at:
+https://github.com/jashandeep-sohi/python-blowfish/issues
 
 Usage
 -----
-.. code:: python3
+.. warning::
 
-    import blowfish
+    Crypto is hard and this module is young, so please don't use it in anything
+    critical without understanding what you are doing and checking the source
+    to make sure it is doing what you want it to.
     
-    cipher = blowfish.Cipher(b"This ist ein Key")
+
+ECB, CBC, PCBC, CFB & OFB
+#########################
+
+CTR
+###
     
-    ciphertext = cipher.encrypt_block(b"12345678")
-    plaintext = cipher.decrypt_block(ciphertext)
-    assert plaintext == b"12345678"
-
-
 .. vim: tabstop=2 expandtab
