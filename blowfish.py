@@ -295,33 +295,30 @@ class Cipher(object):
     if not 8 <= len(key) <= 56:
       raise ValueError("key size is not between 8 and 56")
       
-    # Create Structs
     if byte_order == "big":
-      self._u4_2_struct = Struct(">2I")
-      self._u4_1_struct = Struct(">I")
-      self._u8_1_struct = Struct(">Q")
+      byte_order_fmt = ">"
     elif byte_order == "little":
-      self._u4_2_struct = Struct("<2I")
-      self._u4_1_struct = Struct("<I")
-      self._u8_1_struct = Struct("<Q")
+      byte_order_fmt = "<"
     else:
       raise ValueError("byte order must either be 'big' or 'little'")
+    self.byte_order = byte_order
     
-    self._u1_4_struct = Struct("=4B")
-    self._u1_1_struct = Struct("=B")
+    # Create Structs
+    u4_2_struct = Struct("{}2I".format(byte_order_fmt))
+    u4_1_struct = Struct("{}I".format(byte_order_fmt))
+    u8_1_struct = Struct("{}Q".format(byte_order_fmt))
+    u1_4_struct = Struct("=4B")
+    u1_1_struct = Struct("=B")
       
-    # Save refs locally to the pack/unpack funcs of the structs to speed up
-    # look-ups a little.
-    self._u4_2_pack = self._u4_2_struct.pack
-    self._u4_2_unpack = self._u4_2_struct.unpack
-    self._u4_2_iter_unpack = self._u4_2_struct.iter_unpack
-    
-    self._u4_1_pack = self._u4_1_struct.pack
-    self._u1_4_unpack = self._u1_4_struct.unpack
-    
-    self._u8_1_pack = self._u8_1_struct.pack
-    
-    self._u1_1_iter_unpack = self._u1_1_struct.iter_unpack
+    # Save refs locally to the needed pack/unpack funcs of the structs to speed
+    # up look-ups a little.
+    self._u4_2_pack = u4_2_struct.pack
+    self._u4_2_unpack = u4_2_struct.unpack
+    self._u4_2_iter_unpack = u4_2_struct.iter_unpack
+    self._u4_1_pack = u4_1_struct.pack
+    self._u1_4_unpack = u1_4_struct.unpack
+    self._u8_1_pack = u8_1_struct.pack
+    self._u1_1_iter_unpack = u1_1_struct.iter_unpack
           
     # Copy P array locally
     P = list(P_array)
@@ -783,9 +780,7 @@ class Cipher(object):
       self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
-      counter_L, counter_R = u4_2_unpack(
-        u8_1_pack(counter_n)
-      ) 
+      counter_L, counter_R = u4_2_unpack(u8_1_pack(counter_n))
       L, R = cycle_fast(
         counter_L,
         counter_R,
@@ -795,9 +790,7 @@ class Cipher(object):
       yield u4_2_pack(plain_L ^ L, plain_R ^ R)
       
     if extra_bytes:
-      counter_L, counter_R = u4_2_unpack(
-        u8_1_pack(next(counter))
-      )
+      counter_L, counter_R = u4_2_unpack(u8_1_pack(next(counter)))
       L, R = cycle_fast(
         counter_L,
         counter_R,
