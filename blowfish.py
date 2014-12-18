@@ -23,7 +23,7 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 
 from struct import Struct
 
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 
 # _PI_P_ARRAY & _PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
