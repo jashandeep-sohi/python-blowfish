@@ -39,6 +39,8 @@ if __name__ == "__main__":
      "Intended Audience :: Education",
      "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
      "Programming Language :: Python :: 3.4",
+     "Programming Language :: Python :: 3 :: Only",
      "Topic :: Security :: Cryptography",
+     "Topic :: Software Development :: Libraries :: Python Modules",  
     ],
   )
