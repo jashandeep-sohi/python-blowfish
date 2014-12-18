@@ -65,28 +65,51 @@ Usage
     Cryptography is complex, so please don't use this module in anything
     *critical* without understanding what you are doing and checking the source
     code to make sure it is doing what you want it to.
+    
+.. note::
+
+    This is just a quick overview on how to use the module. For detailed
+    documentation please see the `docstrings` in the module.
+
+First create a `Cipher` object with a `key`.
 
 .. code:: python3
 
     import blowfish
-    cipher = blowfish.Cipher(
-      b"This is the key. It must be between 8 and 56 bytes long."
-    )
     
-.. code:: python3
-
-    ciphertext = cipher.encrypt_block(b"12345678")
-    plaintext = cipher.decrypt_block(ciphertext)
+    cipher = blowfish.Cipher(b"Key must be between 8 and 56 bytes long.")
     
-    assert b"12345678" == plaintext
+By default this initializes a Blowfish cipher that will interpret bytes using
+big-endian byte order. This should not be a problem since most implementations
+use big-endian byte order as well. However, should the need arrive to use
+little-endian byte order, provide ``"little"`` as the second argument.
     
-Electronic Codebook Mode (ECB)
-##############################
+Block
+#####
+To encrypt or decrypt a block of data (8 bytes), use the `encrypt_block` or
+`decrypt_block` methods of the `Cipher` object.
 
 .. code:: python3
 
     from os import urandom
     
+    block = urandom(8)
+    
+    ciphertext = cipher.encrypt_block(block)
+    plaintext = cipher.decrypt_block(ciphertext)
+    
+    assert block == plaintext
+    
+As these methods can only operate on 8 bytes of data, they're of little
+practical use. Instead, use one of the implemented modes of operation.
+    
+Electronic Codebook Mode (ECB)
+##############################
+To encrypt or decrypt data in ECB mode, use `encrypt_ecb` or `decrypt_ecb`
+methods of the `Cipher` object.
+
+.. code:: python3
+
     block_multiple_data = urandom(10 * 8) # data to encrypt
     
     ecb_ciphertext_iter = cipher.encrypt_ecb(block_multiple_data)
@@ -94,8 +117,10 @@ Electronic Codebook Mode (ECB)
     
     assert block_multiple_data == b"".join(ecb_plaintext_iter)
     
-Cipher-Block Chaining (CBC)
-###########################
+Cipher-Block Chaining Mode (CBC)
+################################
+To encrypt or decrypt data in CBC mode, use `encrypt_cbc` or `decrypt_cbc`
+methods of the `Cipher` object.
 
 .. code:: python3
 
@@ -107,6 +132,8 @@ Cipher-Block Chaining (CBC)
     
 Propagating Cipher-Block Chaining Mode (PCBC)
 #############################################
+To encrypt or decrypt data in PCBC mode, use `encrypt_pcbc` or `decrypt_pcbc`
+methods of the `Cipher` object.
 
 .. code:: python3
 
@@ -120,6 +147,10 @@ Propagating Cipher-Block Chaining Mode (PCBC)
 
 Cipher Feedback Mode (CFB)
 ##########################
+To encrypt or decrypt data in CFB mode, use `encrypt_cfb` or `decrypt_cfb`
+methods of the `Cipher` object. Although CFB mode can be implemented to allow
+input data of any length, the current implementation does not. So, the input
+data has to be a block multiple in length.
 
 .. code:: python3
 
@@ -130,6 +161,10 @@ Cipher Feedback Mode (CFB)
 
 Output Feedback Mode (OFB)
 ##########################
+To encrypt or decrypt data in OFB mode, use `encrypt_ofb` or `decrypt_ofb`
+methods of the `Cipher` object. Like CFB mode, OFB mode can also
+be implemented to allow input data of any length. As the current
+implementation does not, input data has to be a block multiple in length.
 
 .. code:: python3
 
@@ -140,6 +175,11 @@ Output Feedback Mode (OFB)
 
 Counter Mode (CTR)
 ##################
+To encrypt or decrypt data in CTR mode, use `encrypt_ctr` or `decrypt_ctr`
+methods of the `Cipher` object. Although you can use any `counter` you want,
+a simple increment by one counter is secure and the most popular. So for
+convenience sake, a simple increment by one counter is implemented by the
+`blowfish.ctr_counter` function.
 
 .. code:: python3
 
