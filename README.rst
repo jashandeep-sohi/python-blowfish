@@ -2,7 +2,7 @@ blowfish
 ========
 Fast, efficient Blowfish cipher implementation in pure Python (3.4+).
 
-.. contents:: Contents
+.. contents::
     :local:
     :backlinks: top
 
@@ -55,22 +55,111 @@ and send me a pull request.
 
 Bugs
 ----
-Are you having problems? Please let me know at:
+Are you having problems? Please let me know at
 https://github.com/jashandeep-sohi/python-blowfish/issues
 
 Usage
 -----
 .. warning::
 
-    Crypto is hard and this module is young, so please don't use it in anything
-    critical without understanding what you are doing and checking the source
-    to make sure it is doing what you want it to.
+    Cryptography is complex, so please don't use this module in anything
+    *critical* without understanding what you are doing and checking the source
+    code to make sure it is doing what you want it to.
+
+.. code:: python3
+
+    import blowfish
+    cipher = blowfish.Cipher(
+      key = b"This is the key. It must be between 8 and 56 bytes long."
+    )
     
+.. code:: python3
 
-ECB, CBC, PCBC, CFB & OFB
-#########################
+    ciphertext = cipher.encrypt_block(b"12345678")
+    plaintext = cipher.decrypt_block(ciphertext)
+    
+    assert b"12345678" == plaintext
+    
+Electronic Codebook Mode (ECB)
+##############################
 
-CTR
-###
+.. code:: python3
+
+    from os import urandom
+    
+    block_multiple_data = urandom(10 * 8) # data to encrypt
+    
+    ecb_ciphertext_iter = cipher.encrypt_ecb(block_multiple_data)
+    ecb_plaintext_iter = cipher.decrypt_ecb(b"".join(ecb_ciphertext_iter))
+    
+    assert block_multiple_data == b"".join(ecb_plaintext_iter)
+    
+Cipher-Block Chaining (CBC)
+###########################
+
+.. code:: python3
+
+    iv = urandom(8) # initialization vector
+    cbc_ciphertext_iter = cipher.encrypt_cbc(block_multiple_data, iv)
+    cbc_plaintext_iter = cipher.decrypt_cbc(b"".join(cbc_ciphertext_iter), iv)
+    
+    assert block_multiple_data == b"".join(cbc_plaintext_iter)
+    
+Propagating Cipher-Block Chaining Mode (PCBC)
+#############################################
+
+.. code:: python3
+
+    pcbc_ciphertext_iter = cipher.encrypt_pcbc(block_multiple_data, iv)
+    pcbc_plaintext_iter = cipher.decrypt_pcbc(
+      b"".join(pcbc_ciphertext_iter),
+      iv
+    )
+    
+    assert block_multiple_data == b"".join(pcbc_plaintext_iter)
+
+Cipher Feedback Mode (CFB)
+##########################
+
+.. code:: python3
+
+    cfb_ciphertext_iter = cipher.encrypt_cfb(block_multiple_data, iv)
+    cfb_plaintext_iter = cipher.decrypt_cfb(b"".join(cfb_ciphertext_iter), iv)
+    
+    assert block_multiple_data == b"".join(cfb_plaintext_iter)
+
+Output Feedback Mode (OFB)
+##########################
+
+.. code:: python3
+
+    ofb_ciphertext_iter = cipher.encrypt_ofb(block_multiple_data, iv)
+    ofb_plaintext_iter = cipher.decrypt_ofb(b"".join(ofb_ciphertext_iter), iv)
+    
+    assert block_multiple_data == b"".join(ofb_plaintext_iter)
+
+Counter Mode (CTR)
+##################
+
+.. code:: python3
+
+    from operator import xor
+    
+    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    
+    encrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
+    decrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
+    
+    cfb_ciphertext_iter = cipher.encrypt_ctr(
+      non_block_multiple_data,
+      encrypt_counter
+    )
+    cfb_plaintext_iter = cipher.decrypt_ctr(
+      b"".join(cfb_ciphertext_iter),
+      decrypt_counter
+    )
+    
+    assert block_multiple_data == b"".join(ctr_plaintext_iter)
+
     
 .. vim: tabstop=2 expandtab
