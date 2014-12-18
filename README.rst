@@ -70,7 +70,7 @@ Usage
 
     import blowfish
     cipher = blowfish.Cipher(
-      key = b"This is the key. It must be between 8 and 56 bytes long."
+      b"This is the key. It must be between 8 and 56 bytes long."
     )
     
 .. code:: python3
@@ -150,12 +150,12 @@ Counter Mode (CTR)
     encrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
     decrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
     
-    cfb_ciphertext_iter = cipher.encrypt_ctr(
+    ctr_ciphertext_iter = cipher.encrypt_ctr(
       non_block_multiple_data,
       encrypt_counter
     )
-    cfb_plaintext_iter = cipher.decrypt_ctr(
-      b"".join(cfb_ciphertext_iter),
+    ctr_plaintext_iter = cipher.decrypt_ctr(
+      b"".join(ctr_ciphertext_iter),
       decrypt_counter
     )
     
