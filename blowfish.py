@@ -282,7 +282,7 @@ class Cipher(object):
       Some modes have weaknesses and quirks, so please read up on them before
       using them. If you can't be bothered, stick with CTR.
   """
-    
+  
   def __init__(
     self, 
     key,
@@ -504,8 +504,7 @@ class Cipher(object):
         u4_1_pack
       )
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
-    
-      
+  
   def decrypt_cbc(self, data, init_vector):
     """
     Return an iterator that decrypts `data` using the Cipher-Block Chaining
@@ -651,7 +650,6 @@ class Cipher(object):
       )
       prev_cipher_L, prev_cipher_R = plain_L ^ L, plain_R ^ R
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
-    
     
   def decrypt_cfb(self, data, init_vector):
     """
