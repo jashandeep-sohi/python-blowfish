@@ -19,8 +19,6 @@ This module implements the Blowfish cipher using only Python (3.4+).
 
 Blowfish is a block cipher created by Bruce Schneier. It's fast, free and
 well tested. More at <https://www.schneier.com/blowfish.html>.
-
-All of the cipher logic is implemented by the :class:`Cipher` class.
 """
 
 from struct import Struct
