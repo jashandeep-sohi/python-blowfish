@@ -232,16 +232,18 @@ class Cipher(object):
   use big endian byte order to convert the bytes into numbers to perform the
   mathematical operations.
   
-  `P_array` and `S_boxes` are the initial P array and substitution boxes used
-  to derive the key dependent P array and S-boxes. By default these are set to
-  the digits of pi (in hexadecimal).
-  If you would like to experiment with your own values (and you know what you
-  are doing!), then `P_array` should be a 1D sequence of integers and `S_boxes`
-  should be a 4 x 256 2D sequence of integers.
-  `P_array` can be an arbitrary length, which determines how many rounds of
-  Blowfish are done per block.
+  `P_array` and `S_boxes` are used to derive the key dependent P array and
+  substitution boxes.
+  By default, `P_array` is a sequence of integers containing the first 18
+  digits of pi (in hexadecimal) and `S_boxes` is a 4 x 256 sequence of integers
+  containing the next 1024 digits of pi.
+  If you would like to use custom values (not recommended unless you know what
+  you are doing), then `S_boxes` should be a 4 x 256 sequence of integers and
+  `P_array` should be an even length sequence of integers (i.e. 16, 18, etc.).
+  The length of `P_array` also deteremines how many rounds of Blowfish are done
+  per block. For a `P_array` with length n, n - 2 rounds of Blowfish are done
+  per block.
   
-
   Encryption & Decryption
   -----------------------
   Blowfish is a block cipher with a block size of 64-bits. As such, encryption
@@ -290,8 +292,19 @@ class Cipher(object):
     P_array = _PI_P_ARRAY,
     S_boxes = _PI_S_BOXES
   ):
+    key = bytes(key)
     if not 8 <= len(key) <= 56:
-      raise ValueError("key size is not between 8 and 56")
+      raise ValueError("key is not between 8 and 56 bytes")
+    
+    # Create a mutable copy of P array locally
+    P = list(P_array)
+    if not len(P) or len(P) % 2 != 0:
+      raise ValueError("P array is not an even length (non-zero) sequence")
+    
+    # Create a mutable copy of S-boxes locally
+    S = list(list(box) for box in S_boxes)
+    if len(S) != 4 or any(len(box) != 256 for box in S):
+      raise ValueError("S-boxes is not a 4 x 256 sequence")
       
     if byte_order == "big":
       byte_order_fmt = ">"
@@ -317,13 +330,7 @@ class Cipher(object):
     self._u1_4_unpack = u1_4_struct.unpack
     self._u8_1_pack = u8_1_struct.pack
     self._u1_1_iter_unpack = u1_1_struct.iter_unpack
-          
-    # Copy P array locally
-    P = list(P_array)
     
-    # Copy S-boxes locally
-    S = list(list(box[0:256]) for box in S_boxes[0:4])
-
     # Generate subkey P array
     j = 0
     for i in range(len(P)):
