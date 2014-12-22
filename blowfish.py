@@ -292,7 +292,6 @@ class Cipher(object):
     P_array = _PI_P_ARRAY,
     S_boxes = _PI_S_BOXES
   ):
-    key = bytes(key)
     if not 8 <= len(key) <= 56:
       raise ValueError("key is not between 8 and 56 bytes")
     
