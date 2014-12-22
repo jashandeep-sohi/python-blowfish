@@ -350,13 +350,13 @@ class Cipher(object):
         L, R = self._cycle(L, R, P, *S)
         box[j], box[j + 1] = L, R
     
-    # Make P array immutable
+    # Store a immutable copy of the initialized P array
     self.P = tuple(P)
     
     # Store a reversed copy for decrypting
     self.P_reversed = self.P[::-1]
     
-    # Make S-boxes immutable
+    # Store a immutable copy of the initialized S-boxes
     self.S = tuple(tuple(s) for s in S)
       
   def _cycle(self, L, R, P, S0, S1, S2, S3):
