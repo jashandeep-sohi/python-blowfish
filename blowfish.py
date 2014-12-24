@@ -22,6 +22,7 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 """
 
 from struct import Struct
+from itertools import cycle as iter_cycle
 
 __version__ = "0.5.0"
 
@@ -238,8 +239,9 @@ class Cipher(object):
   digits of pi (in hexadecimal) and `S_boxes` is a 4 x 256 sequence of integers
   containing the next 1024 digits of pi.
   If you would like to use custom values (not recommended unless you know what
-  you are doing), then `S_boxes` should be a 4 x 256 sequence of integers and
-  `P_array` should be an even length sequence of integers (i.e. 16, 18, etc.).
+  you are doing), then `S_boxes` should be a 4 x 256 sequence of 32-bit integers
+  and `P_array` should be an even length sequence of 32-bit integers
+  (i.e. 16, 18, etc.).
   The length of `P_array` also deteremines how many rounds of Blowfish are done
   per block. For a `P_array` with length n, n - 2 rounds of Blowfish are done
   per block.
@@ -295,14 +297,10 @@ class Cipher(object):
     if not 8 <= len(key) <= 56:
       raise ValueError("key is not between 8 and 56 bytes")
     
-    # Create a mutable copy of P array locally
-    P = list(P_array)
-    if not len(P) or len(P) % 2 != 0:
-      raise ValueError("P array is not an even length (non-zero) sequence")
+    if not len(P_array) or len(P_array) % 2 != 0:
+      raise ValueError("P array is not an even length sequence")
     
-    # Create a mutable copy of S-boxes locally
-    S = list(list(box) for box in S_boxes)
-    if len(S) != 4 or any(len(box) != 256 for box in S):
+    if len(S_boxes) != 4 or any(len(box) != 256 for box in S_boxes):
       raise ValueError("S-boxes is not a 4 x 256 sequence")
       
     if byte_order == "big":
@@ -313,7 +311,7 @@ class Cipher(object):
       raise ValueError("byte order must either be 'big' or 'little'")
     self.byte_order = byte_order
     
-    # Create Structs
+    # Create structs
     u4_2_struct = Struct("{}2I".format(byte_order_fmt))
     u4_1_struct = Struct("{}I".format(byte_order_fmt))
     u8_1_struct = Struct("{}Q".format(byte_order_fmt))
@@ -330,35 +328,51 @@ class Cipher(object):
     self._u8_1_pack = u8_1_struct.pack
     self._u1_1_iter_unpack = u1_1_struct.iter_unpack
     
-    # Generate subkey P array
-    j = 0
-    for i in range(len(P)):
-      data = 0x00000000
-      for _ in range(4):
-        data = (data << 8) | key[j % len(key)]
-        j = j + 1
-      P[i] ^= data
+    # Cyclic key iterator
+    cyclic_key_iter = iter_cycle(iter(key))
+    
+    # Cyclic 32-bit integer iterator over key bytes
+    cyclic_key_u4_iter = (x for (x,) in map(
+      u4_1_struct.unpack,
+      map(
+        bytes,
+        zip(cyclic_key_iter, cyclic_key_iter, cyclic_key_iter, cyclic_key_iter)
+      )
+    ))
         
-    L, R = 0x00000000, 0x00000000
-    for i in range(0, len(P), 2):
-      L, R = self._cycle(L, R, P, *S)
-      P[i], P[i + 1] = L, R
+    # Create and initialize subkey P array
+    P = [
+      [p1 ^ k1, p2 ^ k2] for p1, p2, k1, k2 in zip(
+        P_array[0::2],
+        P_array[1::2],
+        cyclic_key_u4_iter,
+        cyclic_key_u4_iter
+      )
+    ]
+    
+    L = 0x00000000
+    R = 0x00000000
+    for pair in P:
+      L, R = self._cycle(L, R, P, *S_boxes)
+      pair[0] = L
+      pair[1] = R
+    
+    # Save P as a tuple since working with tuples is slightly faster
+    self.P = tuple(tuple(p) for p in P)
+    
+    # Save a reversed copy of the subkey P array for decryption
+    self.P_reversed = tuple((p2, p1) for p1, p2 in P[::-1])
         
-    # Generate subkey S-boxes
+    # Create and initialize subkey S-boxes
+    self.S = S = [[x for x in box] for box in S_boxes]
     for box in S:
       for j in range(0, 256, 2):
         L, R = self._cycle(L, R, P, *S)
         box[j], box[j + 1] = L, R
     
-    # Store a immutable copy of the initialized P array
-    self.P = tuple(P)
+    # Save S as a tuple of tuples
+    self.S = tuple(tuple(box) for box in S)
     
-    # Store a reversed copy for decrypting
-    self.P_reversed = self.P[::-1]
-    
-    # Store a immutable copy of the initialized S-boxes
-    self.S = tuple(tuple(s) for s in S)
-      
   def _cycle(self, L, R, P, S0, S1, S2, S3):
     return self._cycle_fast(
       L,
@@ -368,12 +382,15 @@ class Cipher(object):
     )
     
   def _cycle_fast(self, L, R, P, S0, S1, S2, S3, u1_4_unpack, u4_1_pack):
-    for p in P[0:-2]:
-      L ^= p
+    for p1, p2 in P[:-1]:
+      L ^= p1
       a, b, c, d = u1_4_unpack(u4_1_pack(L))
       R ^= (((S0[a] + S1[b]) ^ S2[c]) + S3[d]) & 0xffffffff
-      L, R = R, L
-    return R ^ P[-1], L ^ P[-2]
+      R ^= p2
+      a, b, c, d = u1_4_unpack(u4_1_pack(R))
+      L ^= (((S0[a] + S1[b]) ^ S2[c]) + S3[d]) & 0xffffffff
+    p1, p2 = P[-1]
+    return R ^ p2, L ^ p1
   
   def _encrypt(self, L, R):
     S0, S1, S2, S3 = self.S
