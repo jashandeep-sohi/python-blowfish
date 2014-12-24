@@ -358,7 +358,7 @@ class Cipher(object):
       pair[1] = R
     
     # Save P as a tuple since working with tuples is slightly faster
-    self.P = tuple(tuple(p) for p in P)
+    self.P = P = tuple(tuple(p) for p in P)
     
     # Save a reversed copy of the subkey P array for decryption
     self.P_reversed = tuple((p2, p1) for p1, p2 in P[::-1])
