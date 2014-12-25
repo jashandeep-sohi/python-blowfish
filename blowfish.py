@@ -24,7 +24,7 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 from struct import Struct
 from itertools import cycle as iter_cycle
 
-__version__ = "0.5.0"
+__version__ = "0.5.1"
 
 # _PI_P_ARRAY & _PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -385,9 +385,6 @@ class Cipher(object):
     
     # Save P as a tuple since working with tuples is slightly faster
     self.P = P = tuple(tuple(p) for p in P)
-    
-    # Save a reversed copy of the subkey P array for decryption
-    self.P_reversed = tuple((p2, p1) for p1, p2 in P[::-1])
         
     for box in S:
       for j in range(0, 256, 2):
@@ -408,25 +405,6 @@ class Cipher(object):
     # Save S
     self.S = tuple(tuple(box) for box in S)
     
-  def _cycle(self, L, R, P, S0, S1, S2, S3):
-    return self._cycle_fast(
-      L,
-      R,
-      P, S0, S1, S2, S3,
-      self._u1_4_unpack, self._u4_1_pack
-    )
-    
-  def _cycle_fast(self, L, R, P, S0, S1, S2, S3, u1_4_unpack, u4_1_pack):
-    for p1, p2 in P[:-1]:
-      L ^= p1
-      a, b, c, d = u1_4_unpack(u4_1_pack(L))
-      R ^= (((S0[a] + S1[b]) ^ S2[c]) + S3[d]) & 0xffffffff
-      R ^= p2
-      a, b, c, d = u1_4_unpack(u4_1_pack(R))
-      L ^= (((S0[a] + S1[b]) ^ S2[c]) + S3[d]) & 0xffffffff
-    p1, p2 = P[-1]
-    return R ^ p2, L ^ p1
-      
   def encrypt_block(self, block):
     """
     Return a :obj:`bytes` object containing the encrypted bytes of a `block`.
