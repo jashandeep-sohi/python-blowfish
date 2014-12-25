@@ -242,7 +242,7 @@ class Cipher(object):
   you are doing), then `S_boxes` should be a 4 x 256 sequence of 32-bit integers
   and `P_array` should be an even length sequence of 32-bit integers
   (i.e. 16, 18, etc.).
-  The length of `P_array` also deteremines how many rounds of Blowfish are done
+  The length of `P_array` also determines how many rounds of Blowfish are done
   per block. For a `P_array` with length n, n - 2 rounds of Blowfish are done
   per block.
   
@@ -682,22 +682,29 @@ class Cipher(object):
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S0, S1, S2, S3 = self.S
-    P_reversed = self.P_reversed
+    P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
+    
+    p_first, p_second = P[0]
     
     init_L, init_R = self._u4_2_unpack(init_vector)
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      L, R = cycle_fast(
-        cipher_L,
-        cipher_R,
-        P_reversed, S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
-      plain_L, plain_R = init_L ^ L, init_R ^ R
+      L = cipher_L
+      R = cipher_R
+      for p2, p1 in P[:0:-1]:
+        L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(L))
+        R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(R))
+        L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      L, R = R ^ p_first, L ^ p_second
+      
+      plain_L = init_L ^ L
+      plain_R = init_R ^ R
       yield u4_2_pack(plain_L, plain_R)
       init_L, init_R = cipher_L ^ plain_L, cipher_R ^ plain_R
     
