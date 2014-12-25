@@ -566,7 +566,6 @@ class Cipher(object):
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
       prev_cipher_L ^= plain_L
       prev_cipher_R ^= plain_R
-      
       for p1, p2 in P[:-1]:
         prev_cipher_L ^= p1
         a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_L))
@@ -642,22 +641,28 @@ class Cipher(object):
     S0, S1, S2, S3 = self.S
     P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
+    
+    p_penultimate, p_last = P[-1]
     
     init_L, init_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      cipher_L, cipher_R = cycle_fast(
-        init_L ^ plain_L,
-        init_R ^ plain_R,
-        P,
-        S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
+      cipher_L = init_L ^ plain_L
+      cipher_R = init_R ^ plain_R
+      for p1, p2 in P[:-1]:
+        cipher_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_L))
+        cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        cipher_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_R))
+        cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      cipher_L, cipher_R = cipher_R ^ p_last, cipher_L ^ p_penultimate
+      
       yield u4_2_pack(cipher_L, cipher_R)
-      init_L, init_R = plain_L ^ cipher_L, plain_R ^ cipher_R
+      init_L = plain_L ^ cipher_L
+      init_R = plain_R ^ cipher_R
     
   def decrypt_pcbc(self, data, init_vector):
     """
