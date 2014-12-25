@@ -812,7 +812,6 @@ class Cipher(object):
     S0, S1, S2, S3 = self.S
     P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
     
@@ -875,38 +874,45 @@ class Cipher(object):
     P = self.P
     u4_2_pack = self._u4_2_pack
     u4_2_unpack = self._u4_2_unpack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
     u8_1_pack = self._u8_1_pack
     
     extra_bytes = len(data) % 8
     
+    p_penultimate, p_last = P[-1]
+    
     for (plain_L, plain_R), counter_n in zip(
       self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
       counter_L, counter_R = u4_2_unpack(u8_1_pack(counter_n))
-      L, R = cycle_fast(
-        counter_L,
-        counter_R,
-        P, S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
-      yield u4_2_pack(plain_L ^ L, plain_R ^ R)
+      for p1, p2 in P[:-1]:
+        counter_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(counter_L))
+        counter_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        counter_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(counter_R))
+        counter_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      counter_L, counter_R = counter_R ^ p_last, counter_L ^ p_penultimate
+      
+      yield u4_2_pack(plain_L ^ counter_L, plain_R ^ counter_R)
       
     if extra_bytes:
       counter_L, counter_R = u4_2_unpack(u8_1_pack(next(counter)))
-      L, R = cycle_fast(
-        counter_L,
-        counter_R,
-        P, S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
+      for p1, p2 in P[:-1]:
+        counter_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(counter_L))
+        counter_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        counter_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(counter_R))
+        counter_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      counter_L, counter_R = counter_R ^ p_last, counter_L ^ p_penultimate
+      
       yield bytes(
         b ^ n for b, (n,) in zip(
           data[-extra_bytes:],
-          self._u1_1_iter_unpack(u4_2_pack(L, R))
+          self._u1_1_iter_unpack(u4_2_pack(counter_L, counter_R))
         )
       )
       
