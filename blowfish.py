@@ -770,21 +770,27 @@ class Cipher(object):
     S0, S1, S2, S3 = self.S
     P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
+    
+    p_penultimate, p_last = P[-1]
     
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      L, R = cycle_fast(
-        prev_cipher_L,
-        prev_cipher_R,
-        P, S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
-      yield u4_2_pack(L ^ cipher_L, R ^ cipher_R)
-      prev_cipher_L, prev_cipher_R = cipher_L, cipher_R
+      for p1, p2 in P[:-1]:
+        prev_cipher_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_L))
+        prev_cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        prev_cipher_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_R))
+        prev_cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      prev_cipher_L, prev_cipher_R = prev_cipher_R ^ p_last, \
+                                     prev_cipher_L ^ p_penultimate
+      
+      yield u4_2_pack(prev_cipher_L ^ cipher_L, prev_cipher_R ^ cipher_R)
+      prev_cipher_L = cipher_L
+      prev_cipher_R = cipher_R
     
   def encrypt_ofb(self, data, init_vector):
     """
