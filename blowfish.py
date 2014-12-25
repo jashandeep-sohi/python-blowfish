@@ -323,8 +323,8 @@ class Cipher(object):
     self._u4_2_pack = u4_2_struct.pack
     self._u4_2_unpack = u4_2_struct.unpack
     self._u4_2_iter_unpack = u4_2_struct.iter_unpack
-    self._u4_1_pack = u4_1_struct.pack
-    self._u1_4_unpack = u1_4_struct.unpack
+    self._u4_1_pack = u4_1_pack = u4_1_struct.pack
+    self._u1_4_unpack = u1_4_unpack = u1_4_struct.unpack
     self._u8_1_pack = u8_1_struct.pack
     self._u1_1_iter_unpack = u1_1_struct.iter_unpack
     
@@ -332,15 +332,22 @@ class Cipher(object):
     cyclic_key_iter = iter_cycle(iter(key))
     
     # Cyclic 32-bit integer iterator over key bytes
-    cyclic_key_u4_iter = (x for (x,) in map(
-      u4_1_struct.unpack,
-      map(
-        bytes,
-        zip(cyclic_key_iter, cyclic_key_iter, cyclic_key_iter, cyclic_key_iter)
+    cyclic_key_u4_iter = (
+      x for (x,) in map(
+        u4_1_struct.unpack,
+        map(
+          bytes,
+          zip(
+            cyclic_key_iter,
+            cyclic_key_iter,
+            cyclic_key_iter,
+            cyclic_key_iter
+          )
+        )
       )
-    ))
+    )
         
-    # Create and initialize subkey P array
+    # Create and initialize subkey P array and S-boxes
     P = [
       [p1 ^ k1, p2 ^ k2] for p1, p2, k1, k2 in zip(
         P_array[0::2],
@@ -350,10 +357,22 @@ class Cipher(object):
       )
     ]
     
+    S0, S1, S2, S3 = S = [[x for x in box] for box in S_boxes]
+    
     L = 0x00000000
     R = 0x00000000
     for pair in P:
-      L, R = self._cycle(L, R, P, *S_boxes)
+      # Encrypt L R
+      for p1, p2 in P[:-1]:
+        L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(L))
+        R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(R))
+        L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      p1, p2 = P[-1]
+      L, R  = R ^ p2, L ^ p1
+      
       pair[0] = L
       pair[1] = R
     
@@ -363,12 +382,21 @@ class Cipher(object):
     # Save a reversed copy of the subkey P array for decryption
     self.P_reversed = tuple((p2, p1) for p1, p2 in P[::-1])
         
-    # Create and initialize subkey S-boxes
-    self.S = S = [[x for x in box] for box in S_boxes]
     for box in S:
       for j in range(0, 256, 2):
-        L, R = self._cycle(L, R, P, *S)
-        box[j], box[j + 1] = L, R
+        # Encrypt L R
+        for p1, p2 in P[:-1]:
+          L ^= p1
+          a, b, c, d = u1_4_unpack(u4_1_pack(L))
+          R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+          R ^= p2
+          a, b, c, d = u1_4_unpack(u4_1_pack(R))
+          L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        p1, p2 = P[-1]
+        L, R = R ^ p2, L ^ p1
+        
+        box[j] = L
+        box[j + 1] = R
     
     # Save S as a tuple of tuples
     self.S = tuple(tuple(box) for box in S)
