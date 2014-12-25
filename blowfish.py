@@ -816,15 +816,20 @@ class Cipher(object):
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
     
+    p_penultimate, p_last = P[-1]
+    
     prev_L, prev_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      prev_L, prev_R = cycle_fast(
-        prev_L,
-        prev_R,
-        P, S0, S1, S2, S3,
-        u1_4_unpack, u4_1_pack
-      )
+      for p1, p2 in P[:-1]:
+        prev_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(prev_L))
+        prev_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        prev_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(prev_R))
+        prev_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      prev_L, prev_R = prev_R ^ p_last, prev_L ^ p_penultimate
+      
       yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
     
   def decrypt_ofb(self, data, init_vector):
