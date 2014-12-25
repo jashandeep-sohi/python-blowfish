@@ -348,6 +348,8 @@ class Cipher(object):
     )
         
     # Create and initialize subkey P array and S-boxes
+    
+    # XOR each element in P_array with key and save as pairs.
     P = [
       [p1 ^ k1, p2 ^ k2] for p1, p2, k1, k2 in zip(
         P_array[0::2],
@@ -370,8 +372,8 @@ class Cipher(object):
         R ^= p2
         a, b, c, d = u1_4_unpack(u4_1_pack(R))
         L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      p1, p2 = P[-1]
-      L, R  = R ^ p2, L ^ p1
+      p_penultimate, p_last = P[-1]
+      L, R  = R ^ p_last, L ^ p_penultimate
       
       pair[0] = L
       pair[1] = R
@@ -392,13 +394,13 @@ class Cipher(object):
           R ^= p2
           a, b, c, d = u1_4_unpack(u4_1_pack(R))
           L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        p1, p2 = P[-1]
-        L, R = R ^ p2, L ^ p1
+        p_penultimate, p_last = P[-1]
+        L, R  = R ^ p_last, L ^ p_penultimate
         
         box[j] = L
         box[j + 1] = R
     
-    # Save S as a tuple of tuples
+    # Save S
     self.S = tuple(tuple(box) for box in S)
     
   def _cycle(self, L, R, P, S0, S1, S2, S3):
@@ -433,6 +435,8 @@ class Cipher(object):
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
     
+    p_penultimate, p_last = P[-1]
+    
     L, R = self._u4_2_unpack(block)
     for p1, p2 in P[:-1]:
       L ^= p1
@@ -441,8 +445,7 @@ class Cipher(object):
       R ^= p2
       a, b, c, d = u1_4_unpack(u4_1_pack(R))
       L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-    p1, p2 = P[-1]
-    return self._u4_2_pack(R ^ p2, L ^ p1)
+    return self._u4_2_pack(R ^ p_last, L ^ p_penultimate)
   
   def decrypt_block(self, block):
     """
@@ -457,6 +460,8 @@ class Cipher(object):
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
     
+    p_first, p_second = P[0]
+    
     L, R = self._u4_2_unpack(block)
     for p2, p1 in P[:0:-1]:
       L ^= p1
@@ -465,8 +470,7 @@ class Cipher(object):
       R ^= p2
       a, b, c, d = u1_4_unpack(u4_1_pack(R))
       L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-    p2, p1 = P[0]
-    return self._u4_2_pack(R ^ p2, L ^ p1)
+    return self._u4_2_pack(R ^ p_first, L ^ p_second)
     
   def encrypt_ecb(self, data):
     """
@@ -484,19 +488,20 @@ class Cipher(object):
     S0, S1, S2, S3 = self.S
     P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
     
+    p_penultimate, p_last = P[-1]
+    
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      yield u4_2_pack(
-        *cycle_fast(
-          plain_L,
-          plain_R,
-          P, S0, S1, S2, S3,
-          u1_4_unpack, u4_1_pack
-        )
-      )
+      for p1, p2 in P[:-1]:
+        plain_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(plain_L))
+        plain_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        plain_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(plain_R))
+        plain_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      yield u4_2_pack(plain_R ^ p_last, plain_L ^ p_penultimate)
     
   def decrypt_ecb(self, data):
     """
