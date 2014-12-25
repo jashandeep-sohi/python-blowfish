@@ -420,15 +420,6 @@ class Cipher(object):
     p1, p2 = P[-1]
     return R ^ p2, L ^ p1
       
-  def _decrypt(self, L, R):
-    S0, S1, S2, S3 = self.S
-    return self._cycle_fast(
-      L,
-      R,
-      self.P_reversed, S0, S1, S2, S3,
-      self._u1_4_unpack, self._u4_1_pack
-    )
-  
   def encrypt_block(self, block):
     """
     Return the encrypted value of a `block`.
@@ -461,7 +452,21 @@ class Cipher(object):
     (i.e. 64 bits).
     If it is not, a :exc:`struct.error` exception is raised.      
     """
-    return self._u4_2_pack(*self._decrypt(*self._u4_2_unpack(block)))
+    S0, S1, S2, S3 = self.S
+    P = self.P
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    
+    L, R = self._u4_2_unpack(block)
+    for p2, p1 in P[:0:-1]:
+      L ^= p1
+      a, b, c, d = u1_4_unpack(u4_1_pack(L))
+      R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      R ^= p2
+      a, b, c, d = u1_4_unpack(u4_1_pack(R))
+      L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+    p2, p1 = P[0]
+    return self._u4_2_pack(R ^ p2, L ^ p1)
     
   def encrypt_ecb(self, data):
     """
