@@ -501,6 +501,7 @@ class Cipher(object):
         plain_R ^= p2
         a, b, c, d = u1_4_unpack(u4_1_pack(plain_R))
         plain_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      
       yield u4_2_pack(plain_R ^ p_last, plain_L ^ p_penultimate)
     
   def decrypt_ecb(self, data):
@@ -517,23 +518,24 @@ class Cipher(object):
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S0, S1, S2, S3 = self.S
-    P_reversed = self.P_reversed
+    P = self.P
     u4_2_pack = self._u4_2_pack
-    cycle_fast = self._cycle_fast
     u1_4_unpack = self._u1_4_unpack
     u4_1_pack = self._u4_1_pack
     
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      yield u4_2_pack(
-        *cycle_fast(
-          cipher_L,
-          cipher_R,
-          P_reversed,
-          S0, S1, S2, S3,
-          u1_4_unpack, u4_1_pack
-        )
-      )
+    p_first, p_second = P[0]
     
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+      for p2, p1 in P[:0:-1]:
+        cipher_L ^= p1
+        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_L))
+        cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+        cipher_R ^= p2
+        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_R))
+        cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+      
+      yield u4_2_pack(cipher_R ^ p_first, cipher_L ^ p_second)
+      
   def encrypt_cbc(self, data, init_vector):
     """
     Return an iterator that encrypts `data` using the Cipher-Block Chaining
