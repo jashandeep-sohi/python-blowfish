@@ -24,20 +24,20 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 from struct import Struct
 from itertools import cycle as iter_cycle
 
-__version__ = "0.5.1"
+__version__ = "0.5.2"
 
-# _PI_P_ARRAY & _PI_S_BOXES are the hexadecimal digits of π (the irrational)
+# PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
 
 # 1 x 18
-_PI_P_ARRAY = (
+PI_P_ARRAY = (
   0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344, 0xa4093822, 0x299f31d0,
   0x082efa98, 0xec4e6c89, 0x452821e6, 0x38d01377, 0xbe5466cf, 0x34e90c6c,
   0xc0ac29b7, 0xc97c50dd, 0x3f84d5b5, 0xb5470917, 0x9216d5d9, 0x8979fb1b,
 )
 
 # 4 x 256
-_PI_S_BOXES = (
+PI_S_BOXES = (
   (
     0xd1310ba6, 0x98dfb5ac, 0x2ffd72db, 0xd01adfb7, 0xb8e1afed, 0x6a267e96,
     0xba7c9045, 0xf12c7f99, 0x24a19947, 0xb3916cf7, 0x0801f2e2, 0x858efc16,
@@ -296,8 +296,8 @@ class Cipher(object):
     self, 
     key,
     byte_order = "big",
-    P_array = _PI_P_ARRAY,
-    S_boxes = _PI_S_BOXES
+    P_array = PI_P_ARRAY,
+    S_boxes = PI_S_BOXES
   ):
     if not 8 <= len(key) <= 56:
       raise ValueError("key is not between 8 and 56 bytes")
@@ -321,17 +321,18 @@ class Cipher(object):
     u4_1_struct = Struct("{}I".format(byte_order_fmt))
     u8_1_struct = Struct("{}Q".format(byte_order_fmt))
     u1_4_struct = Struct("=4B")
-    u1_1_struct = Struct("=B")
       
     # Save refs locally to the needed pack/unpack funcs of the structs to speed
     # up look-ups a little.
     self._u4_2_pack = u4_2_struct.pack
     self._u4_2_unpack = u4_2_struct.unpack
     self._u4_2_iter_unpack = u4_2_struct.iter_unpack
+    
     self._u4_1_pack = u4_1_pack = u4_1_struct.pack
+    
     self._u1_4_unpack = u1_4_unpack = u1_4_struct.unpack
+    
     self._u8_1_pack = u8_1_struct.pack
-    self._u1_1_iter_unpack = u1_1_struct.iter_unpack
     
     # Cyclic key iterator
     cyclic_key_iter = iter_cycle(iter(key))
@@ -356,7 +357,7 @@ class Cipher(object):
     
     # XOR each element in P_array with key and save as pairs.
     P = [
-      [p1 ^ k1, p2 ^ k2] for p1, p2, k1, k2 in zip(
+      (p1 ^ k1, p2 ^ k2) for p1, p2, k1, k2 in zip(
         P_array[0::2],
         P_array[1::2],
         cyclic_key_u4_iter,
@@ -364,47 +365,51 @@ class Cipher(object):
       )
     ]
     
-    S0, S1, S2, S3 = S = [[x for x in box] for box in S_boxes]
+    S1, S2, S3, S4 = S = [[x for x in box] for box in S_boxes]
     
+    encrypt = self._encrypt
     L = 0x00000000
     R = 0x00000000
-    for pair in P:
-      # Encrypt L R
-      for p1, p2 in P[:-1]:
-        L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(L))
-        R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(R))
-        L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      p_penultimate, p_last = P[-1]
-      L, R  = R ^ p_last, L ^ p_penultimate
-      
-      pair[0] = L
-      pair[1] = R
+    
+    for i in range(len(P)):
+      P[i] = L, R = encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     
     # Save P as a tuple since working with tuples is slightly faster
-    self.P = P = tuple(tuple(p) for p in P)
+    self.P = P = tuple(P)
         
     for box in S:
-      for j in range(0, 256, 2):
-        # Encrypt L R
-        for p1, p2 in P[:-1]:
-          L ^= p1
-          a, b, c, d = u1_4_unpack(u4_1_pack(L))
-          R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-          R ^= p2
-          a, b, c, d = u1_4_unpack(u4_1_pack(R))
-          L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        p_penultimate, p_last = P[-1]
-        L, R  = R ^ p_last, L ^ p_penultimate
-        
-        box[j] = L
-        box[j + 1] = R
+      for i in range(0, 256, 2):
+        L, R = encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+        box[i] = L
+        box[i + 1] = R
     
     # Save S
     self.S = tuple(tuple(box) for box in S)
     
+  @staticmethod
+  def _encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack):
+    for p1, p2 in P[:-1]:
+      L ^= p1
+      a, b, c, d = u1_4_unpack(u4_1_pack(L))
+      R ^= (S1[a] + S2[b] ^ S3[c]) + S4[d] & 0xffffffff
+      R ^= p2
+      a, b, c, d = u1_4_unpack(u4_1_pack(R))
+      L ^= (S1[a] + S2[b] ^ S3[c]) + S4[d] & 0xffffffff
+    p_penultimate, p_last = P[-1]
+    return R ^ p_last, L ^ p_penultimate
+  
+  @staticmethod
+  def _decrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack):
+    for p2, p1 in P[:0:-1]:
+      L ^= p1
+      a, b, c, d = u1_4_unpack(u4_1_pack(L))
+      R ^= (S1[a] + S2[b] ^ S3[c]) + S4[d] & 0xffffffff
+      R ^= p2
+      a, b, c, d = u1_4_unpack(u4_1_pack(R))
+      L ^= (S1[a] + S2[b] ^ S3[c]) + S4[d] & 0xffffffff
+    p_first, p_second = P[0]
+    return R ^ p_first, L ^ p_second
+  
   def encrypt_block(self, block):
     """
     Return a :obj:`bytes` object containing the encrypted bytes of a `block`.
@@ -414,11 +419,10 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
+    
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
-    
-    p_penultimate, p_last = P[-1]
-    
+        
     L, R = self._u4_2_unpack(block)
     for p1, p2 in P[:-1]:
       L ^= p1
@@ -427,6 +431,7 @@ class Cipher(object):
       R ^= p2
       a, b, c, d = u1_4_unpack(u4_1_pack(R))
       L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+    p_penultimate, p_last = P[-1]
     return self._u4_2_pack(R ^ p_last, L ^ p_penultimate)
   
   def decrypt_block(self, block):
@@ -438,10 +443,9 @@ class Cipher(object):
     """
     S0, S1, S2, S3 = self.S
     P = self.P
+    
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
-    
-    p_first, p_second = P[0]
     
     L, R = self._u4_2_unpack(block)
     for p2, p1 in P[:0:-1]:
@@ -451,6 +455,7 @@ class Cipher(object):
       R ^= p2
       a, b, c, d = u1_4_unpack(u4_1_pack(R))
       L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
+    p_first, p_second = P[0]
     return self._u4_2_pack(R ^ p_first, L ^ p_second)
     
   def encrypt_ecb(self, data):
@@ -467,24 +472,19 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_penultimate, p_last = P[-1]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      for p1, p2 in P[:-1]:
-        plain_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(plain_L))
-        plain_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        plain_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(plain_R))
-        plain_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      
-      yield u4_2_pack(plain_R ^ p_last, plain_L ^ p_penultimate)
+      yield u4_2_pack(
+        *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      )
     
   def decrypt_ecb(self, data):
     """
@@ -500,24 +500,19 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_first, p_second = P[0]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    decrypt = self._decrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      for p2, p1 in P[:0:-1]:
-        cipher_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_L))
-        cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        cipher_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_R))
-        cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      
-      yield u4_2_pack(cipher_R ^ p_first, cipher_L ^ p_second)
+      yield u4_2_pack(
+        *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      )
       
   def encrypt_cbc(self, data, init_vector):
     """
@@ -537,29 +532,24 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_penultimate, p_last = P[-1]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      prev_cipher_L ^= plain_L
-      prev_cipher_R ^= plain_R
-      for p1, p2 in P[:-1]:
-        prev_cipher_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_L))
-        prev_cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        prev_cipher_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_R))
-        prev_cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      prev_cipher_L, prev_cipher_R = prev_cipher_R ^ p_last, \
-                                     prev_cipher_L ^ p_penultimate
-      
+      prev_cipher_L, prev_cipher_R = encrypt(
+        prev_cipher_L ^ plain_L,
+        prev_cipher_R ^ plain_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
   
   def decrypt_cbc(self, data, init_vector):
@@ -580,28 +570,23 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_first, p_second = P[0]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    decrypt = self._decrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      L = cipher_L
-      R = cipher_R
-      for p2, p1 in P[:0:-1]:
-        L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(L))
-        R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(R))
-        L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      L, R = R ^ p_first, L ^ p_second
-      
+      L, R = decrypt(
+        cipher_L, cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield u4_2_pack(prev_cipher_L ^ L, prev_cipher_R ^ R)
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
@@ -624,28 +609,23 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_penultimate, p_last = P[-1]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     init_L, init_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      cipher_L = init_L ^ plain_L
-      cipher_R = init_R ^ plain_R
-      for p1, p2 in P[:-1]:
-        cipher_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_L))
-        cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        cipher_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(cipher_R))
-        cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      cipher_L, cipher_R = cipher_R ^ p_last, cipher_L ^ p_penultimate
-      
+      cipher_L, cipher_R = encrypt(
+        init_L ^ plain_L, init_R ^ plain_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield u4_2_pack(cipher_L, cipher_R)
       init_L = plain_L ^ cipher_L
       init_R = plain_R ^ cipher_R
@@ -668,32 +648,28 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_first, p_second = P[0]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    decrypt = self._decrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     init_L, init_R = self._u4_2_unpack(init_vector)
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      L = cipher_L
-      R = cipher_R
-      for p2, p1 in P[:0:-1]:
-        L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(L))
-        R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(R))
-        L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      L, R = R ^ p_first, L ^ p_second
-      
-      plain_L = init_L ^ L
-      plain_R = init_R ^ R
+      plain_L, plain_R = decrypt(
+        cipher_L, cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
+      plain_L ^= init_L
+      plain_R ^= init_R
       yield u4_2_pack(plain_L, plain_R)
-      init_L, init_R = cipher_L ^ plain_L, cipher_R ^ plain_R
+      init_L = cipher_L ^ plain_L
+      init_R = cipher_R ^ plain_R
     
   def encrypt_cfb(self, data, init_vector):
     """
@@ -714,27 +690,23 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_penultimate, p_last = P[-1]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      for p1, p2 in P[:-1]:
-        prev_cipher_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_L))
-        prev_cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        prev_cipher_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_R))
-        prev_cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      prev_cipher_L, prev_cipher_R = prev_cipher_R ^ p_last, \
-                                     prev_cipher_L ^ p_penultimate
-      
+      prev_cipher_L, prev_cipher_R = encrypt(
+        prev_cipher_L, prev_cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )      
       prev_cipher_L ^= plain_L
       prev_cipher_R ^= plain_R
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
@@ -758,27 +730,23 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
-    u4_1_pack = self._u4_1_pack
     
-    p_penultimate, p_last = P[-1]
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
     
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
-      for p1, p2 in P[:-1]:
-        prev_cipher_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_L))
-        prev_cipher_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        prev_cipher_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_cipher_R))
-        prev_cipher_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      prev_cipher_L, prev_cipher_R = prev_cipher_R ^ p_last, \
-                                     prev_cipher_L ^ p_penultimate
-      
+      prev_cipher_L, prev_cipher_R = encrypt(
+        prev_cipher_L, prev_cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )      
       yield u4_2_pack(prev_cipher_L ^ cipher_L, prev_cipher_R ^ cipher_R)
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
@@ -802,26 +770,23 @@ class Cipher(object):
     (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u1_4_unpack = self._u1_4_unpack
+
     u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
     
-    p_penultimate, p_last = P[-1]
+    u4_2_pack = self._u4_2_pack
     
     prev_L, prev_R = self._u4_2_unpack(init_vector)
     
     for plain_L, plain_R in self._u4_2_iter_unpack(data):
-      for p1, p2 in P[:-1]:
-        prev_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_L))
-        prev_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        prev_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(prev_R))
-        prev_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      prev_L, prev_R = prev_R ^ p_last, prev_L ^ p_penultimate
-      
+      prev_L, prev_R = encrypt(
+        prev_L, prev_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
     
   def decrypt_ofb(self, data, init_vector):
@@ -865,49 +830,43 @@ class Cipher(object):
     
     `data` should be a :obj:`bytes`-like object (with any length).
     """
-    S0, S1, S2, S3 = self.S
+    S1, S2, S3, S4 = self.S
     P = self.P
-    u4_2_pack = self._u4_2_pack
-    u4_2_unpack = self._u4_2_unpack
-    u1_4_unpack = self._u1_4_unpack
+    
     u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    encrypt = self._encrypt
+    
+    u4_2_pack = self._u4_2_pack
+    
+    u4_2_unpack = self._u4_2_unpack
     u8_1_pack = self._u8_1_pack
     
     extra_bytes = len(data) % 8
-    
-    p_penultimate, p_last = P[-1]
     
     for (plain_L, plain_R), counter_n in zip(
       self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
       counter_L, counter_R = u4_2_unpack(u8_1_pack(counter_n))
-      for p1, p2 in P[:-1]:
-        counter_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(counter_L))
-        counter_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        counter_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(counter_R))
-        counter_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      counter_L, counter_R = counter_R ^ p_last, counter_L ^ p_penultimate
-      
+      counter_L, counter_R = encrypt(
+        counter_L, counter_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield u4_2_pack(plain_L ^ counter_L, plain_R ^ counter_R)
       
     if extra_bytes:
       counter_L, counter_R = u4_2_unpack(u8_1_pack(next(counter)))
-      for p1, p2 in P[:-1]:
-        counter_L ^= p1
-        a, b, c, d = u1_4_unpack(u4_1_pack(counter_L))
-        counter_R ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-        counter_R ^= p2
-        a, b, c, d = u1_4_unpack(u4_1_pack(counter_R))
-        counter_L ^= (S0[a] + S1[b] ^ S2[c]) + S3[d] & 0xffffffff
-      counter_L, counter_R = counter_R ^ p_last, counter_L ^ p_penultimate
-      
+      counter_L, counter_R = encrypt(
+        counter_L, counter_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
       yield bytes(
-        b ^ n for b, (n,) in zip(
+        b ^ n for b, n in zip(
           data[-extra_bytes:],
-          self._u1_1_iter_unpack(u4_2_pack(counter_L, counter_R))
+          u4_2_pack(counter_L, counter_R)
         )
       )
       
