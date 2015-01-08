@@ -24,7 +24,7 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 from struct import Struct
 from itertools import cycle as iter_cycle
 
-__version__ = "0.5.2"
+__version__ = "0.5.3"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -466,7 +466,7 @@ class Cipher(object):
     ECB mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
@@ -495,7 +495,7 @@ class Cipher(object):
     ECB mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
@@ -524,7 +524,7 @@ class Cipher(object):
     CBC mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
     
     `init_vector` is the initialization vector and should be a
@@ -563,7 +563,7 @@ class Cipher(object):
     CBC mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
     
     `init_vector` is the initialization vector and should be a
@@ -603,7 +603,7 @@ class Cipher(object):
     PCBC mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
     
     `init_vector` is the initialization vector and should be a
@@ -643,7 +643,7 @@ class Cipher(object):
     PCBC mode can only operate on `data` that is a multiple of the block-size
     in length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
+    Each iteration returns a block-sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
     
     `init_vector` is the initialization vector and should be a
@@ -682,19 +682,19 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Cipher Feedback (CFB)
     mode of operation.
     
-    Although CFB mode is capable of operating on `data` of any length, the
-    current implementation does not.
+    CFB mode can operate on `data` of any length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
-    containing the encrypted bytes of the corresponding block in `data`.
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
+    block in `data`. The last iteration may return a :obj:`bytes` object with a
+    length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object that is a multiple of the
-    block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    `data` should be a :obj:`bytes`-like object (of any length).
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -705,9 +705,13 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
+    extra_bytes = len(data) % 8
+    
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+    for plain_L, plain_R in self._u4_2_iter_unpack(
+      data[0:len(data) - extra_bytes]
+    ):
       prev_cipher_L, prev_cipher_R = encrypt(
         prev_cipher_L, prev_cipher_R,
         P, S1, S2, S3, S4,
@@ -716,25 +720,39 @@ class Cipher(object):
       prev_cipher_L ^= plain_L
       prev_cipher_R ^= plain_R
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
+      
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[-extra_bytes:],
+          u4_2_pack(
+            *encrypt(
+              prev_cipher_L, prev_cipher_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
+          )
+        )
+      )
     
   def decrypt_cfb(self, data, init_vector):
     """
     Return an iterator that decrypts `data` using the Cipher Feedback (CFB)
     mode of operation.
     
-    Although CFB mode is capable of operating on `data` of any length, the
-    current implementation does not.
+    CFB mode can operate on `data` of any length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
-    containing the decrypted bytes of the corresponding block in `data`.
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
+    block in `data`. The last iteration may return a :obj:`bytes` object with a
+    length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object that is a multiple of the
-    block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    `data` should be a :obj:`bytes`-like object (of any length).
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -745,9 +763,13 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
+    extra_bytes = len(data) % 8
+    
     prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
     
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(
+      data[0:len(data) - extra_bytes]
+    ):
       prev_cipher_L, prev_cipher_R = encrypt(
         prev_cipher_L, prev_cipher_R,
         P, S1, S2, S3, S4,
@@ -756,6 +778,20 @@ class Cipher(object):
       yield u4_2_pack(prev_cipher_L ^ cipher_L, prev_cipher_R ^ cipher_R)
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
+      
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[-extra_bytes:],
+          u4_2_pack(
+            *encrypt(
+              prev_cipher_L, prev_cipher_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
+          )
+        )
+      )
     
   def encrypt_ofb(self, data, init_vector):
     """
@@ -764,11 +800,14 @@ class Cipher(object):
     
     OFB mode can operate on `data` of any length.
     
-    Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
-    containing the encrypted bytes of the corresponding block in `data`.
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
+    block in `data`. The last iteration may return a :obj:`bytes` object with a
+    length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
     
     `init_vector` is the initialization vector and should be a
-    :obj:`bytes`-like object with exactly 8.
+    :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
     `data` should be a :obj:`bytes`-like object (of any length).
@@ -835,11 +874,11 @@ class Cipher(object):
     
     CTR mode can operate on `data` of any length.
     
-    Each iteration, except the last, always returns a block sized :obj:`bytes`
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
     object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
     block in `data`. The last iteration may return a :obj:`bytes` object with a
-    length less than the block size, if `data` does not have a block multiple
-    length.
+    length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
         
     `counter` should be an iterable sequence of 64-bit integers which are
     guaranteed not to repeat for a long time.

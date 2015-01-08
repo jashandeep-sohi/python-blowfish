@@ -151,16 +151,16 @@ multiple of the block-size in length.
 Cipher Feedback Mode (CFB)
 ##########################
 To encrypt or decrypt data in CFB mode, use `encrypt_cfb` or `decrypt_cfb`
-methods of the `Cipher` object. Although CFB mode can be implemented to allow
-input data of any length, the current implementation does not. So, the input
-data has to be a multiple of the block-size in length.
+methods of the `Cipher` object. CFB mode can operate on data of any length.
 
 .. code:: python3
 
-    cfb_ciphertext_iter = cipher.encrypt_cfb(block_multiple_data, iv)
+    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    
+    cfb_ciphertext_iter = cipher.encrypt_cfb(non_block_multiple_data, iv)
     cfb_plaintext_iter = cipher.decrypt_cfb(b"".join(cfb_ciphertext_iter), iv)
     
-    assert block_multiple_data == b"".join(cfb_plaintext_iter)
+    assert non_block_multiple_data == b"".join(cfb_plaintext_iter)
 
 Output Feedback Mode (OFB)
 ##########################
@@ -168,8 +168,6 @@ To encrypt or decrypt data in OFB mode, use `encrypt_ofb` or `decrypt_ofb`
 methods of the `Cipher` object. OFB mode can operate on data of any length.
 
 .. code:: python3
-
-    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
     
     ofb_ciphertext_iter = cipher.encrypt_ofb(non_block_multiple_data, iv)
     ofb_plaintext_iter = cipher.decrypt_ofb(b"".join(ofb_ciphertext_iter), iv)
@@ -182,7 +180,8 @@ To encrypt or decrypt data in CTR mode, use `encrypt_ctr` or `decrypt_ctr`
 methods of the `Cipher` object. CTR mode can operate on data of any length.
 Although you can use any `counter` you want, a simple increment by one counter
 is secure and the most popular. So for convenience sake, a simple increment by
-one counter is implemented by the `blowfish.ctr_counter` function.
+one counter is implemented by the `blowfish.ctr_counter` function. However,
+you should implement your own for optimization purposes.
 
 .. code:: python3
 

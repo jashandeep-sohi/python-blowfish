@@ -104,10 +104,25 @@ if __name__ == "__main__":
   )
   print("Success!")
   
-  print("Testing 'encrypt_cfb' and 'decrypt_cfb'...")
+  print(
+    "Testing 'encrypt_cfb' and 'decrypt_cfb' w/ block-size multiple length "
+    "data..."
+  )
   assert rand_bytes == b"".join(
     test_cipher.decrypt_cfb(
       b"".join(test_cipher.encrypt_cfb(rand_bytes, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
+  
+  print(
+    "Testing 'encrypt_cfb' and 'decrypt_cfb' w/o block-size multiple length "
+    "data..."
+  )
+  assert odd_rand_bytes == b"".join(
+    test_cipher.decrypt_cfb(
+      b"".join(test_cipher.encrypt_cfb(odd_rand_bytes, b"12345678")),
       b"12345678"
     )
   )

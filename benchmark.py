@@ -127,10 +127,12 @@ if __name__ == "__main__":
     timer = Timer(perf_counter)
     iv = b"12345678"
     with timer:
-      b"".join(test_cipher.encrypt_cfb(rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+      b"".join(test_cipher.encrypt_cfb(odd_rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  print("{} random bytes in {:.5f} sec (average)".format(
+    odd_num_bytes, total / n
+  ))
   
   print("\nBenchmarking 'decrypt_cfb'...")
   total = 0
@@ -138,10 +140,12 @@ if __name__ == "__main__":
     timer = Timer(perf_counter)
     iv = b"12345678"
     with timer:
-      b"".join(test_cipher.decrypt_cfb(rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+      b"".join(test_cipher.decrypt_cfb(odd_rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  print("{} random bytes in {:.5f} sec (average)".format(
+    odd_num_bytes, total / n
+  ))
   
   print("\nBenchmarking 'encrypt_ofb'...")
   total = 0
@@ -149,10 +153,12 @@ if __name__ == "__main__":
     timer = Timer(perf_counter)
     iv = b"12345678"
     with timer:
-      b"".join(test_cipher.encrypt_ofb(rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+      b"".join(test_cipher.encrypt_ofb(odd_rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  print("{} random bytes in {:.5f} sec (average)".format(
+    odd_num_bytes, total / n
+  ))
   
   print("\nBenchmarking 'decrypt_ofb'...")
   total = 0
@@ -160,10 +166,12 @@ if __name__ == "__main__":
     timer = Timer(perf_counter)
     iv = b"12345678"
     with timer:
-      b"".join(test_cipher.decrypt_ofb(rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+      b"".join(test_cipher.decrypt_ofb(odd_rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  print("{} random bytes in {:.5f} sec (average)".format(
+    odd_num_bytes, total / n
+  ))
   
   print("\nBenchmarking 'encrypt_ctr'...")
   total = 0
