@@ -277,12 +277,12 @@ class Cipher(object):
   | Counter (CTR)             | :meth:`encrypt_ctr`  | :meth:`decrypt_ctr`  |
   +---------------------------+----------------------+----------------------+
   
-  All modes of operation, with the exception of CTR and OFB, can only operate
-  on data that is a multiple of the block-size in length (i.e. 8, 16, 32, etc.
-  bytes). CTR and OFB modes can operate on data of any length.
+  All modes of operation, with the exception of CTR, CFB and OFB, can only
+  operate on data that is a multiple of the block-size in length (i.e. 8, 16,
+  32, etc. bytes). CTR, CFB and OFB modes can operate on data of any length.
   
   Data that is not a multiple of the block-size in length can still be used
-  with modes that expect otherwise (i.e. ECB, CBC, PCBC, CFB), if it is padded
+  with modes that expect otherwise (i.e. ECB, CBC, PCBC), if it is padded
   properly. Padding functionality is not implemented in this module, as there
   are countless schemes and it's relatively easy to roll out your own.
   
