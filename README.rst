@@ -81,7 +81,7 @@ First create a `Cipher` object with a `key`.
     
 By default this initializes a Blowfish cipher that will interpret bytes using
 big-endian byte order. This should not be a problem since most implementations
-use big-endian byte order as well. However, should the need arrive to use
+use big-endian byte order as well. However, should the need arrise to use
 little-endian byte order, provide ``"little"`` as the second argument.
     
 Block
