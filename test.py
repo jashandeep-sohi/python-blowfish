@@ -5,7 +5,7 @@ import operator
 
 if __name__ == "__main__":
     
-  print("Testing 'encrypt_block' and 'decrypt_block'...", end="", flush=True)
+  print("Testing 'encrypt_block' and 'decrypt_block'...")
   # Test vectors from <https://www.schneier.com/code/vectors.txt>
   test_blocks = (
     # key                 clear text          cipher text
@@ -78,7 +78,7 @@ if __name__ == "__main__":
   rand_bytes = urandom(10000 * 8)
   odd_rand_bytes = rand_bytes + urandom(7)
   
-  print("\nTesting 'encrypt_ecb' and 'decrypt_ecb'...", end="", flush=True)
+  print("Testing 'encrypt_ecb' and 'decrypt_ecb'...")
   assert rand_bytes == b"".join(
     test_cipher.decrypt_ecb(
       b"".join(test_cipher.encrypt_ecb(rand_bytes))
@@ -86,7 +86,7 @@ if __name__ == "__main__":
   )
   print("Success!")
      
-  print("\nTesting 'encrypt_cbc' and 'decrypt_cbc'...", end="", flush=True)
+  print("Testing 'encrypt_cbc' and 'decrypt_cbc'...")
   assert rand_bytes == b"".join(
     test_cipher.decrypt_cbc(
       b"".join(test_cipher.encrypt_cbc(rand_bytes, b"12345678")),
@@ -95,7 +95,7 @@ if __name__ == "__main__":
   )
   print("Success!")
     
-  print("\nTesting 'encrypt_pcbc' and 'decrypt_pcbc'...", end="", flush=True)
+  print("Testing 'encrypt_pcbc' and 'decrypt_pcbc'...")
   assert rand_bytes == b"".join(
     test_cipher.decrypt_pcbc(
       b"".join(test_cipher.encrypt_pcbc(rand_bytes, b"12345678")),
@@ -104,7 +104,7 @@ if __name__ == "__main__":
   )
   print("Success!")
   
-  print("\nTesting 'encrypt_cfb' and 'decrypt_cfb'...", end="", flush=True)
+  print("Testing 'encrypt_cfb' and 'decrypt_cfb'...")
   assert rand_bytes == b"".join(
     test_cipher.decrypt_cfb(
       b"".join(test_cipher.encrypt_cfb(rand_bytes, b"12345678")),
@@ -113,7 +113,10 @@ if __name__ == "__main__":
   )
   print("Success!")
   
-  print("\nTesting 'encrypt_ofb' and 'decrypt_ofb'...", end="", flush=True)
+  print(
+    "Testing 'encrypt_ofb' and 'decrypt_ofb' w/ block-size multiple length "
+    "data..."
+  )
   assert rand_bytes == b"".join(
     test_cipher.decrypt_ofb(
       b"".join(test_cipher.encrypt_ofb(rand_bytes, b"12345678")),
@@ -122,7 +125,37 @@ if __name__ == "__main__":
   )
   print("Success!")
   
-  print("\nTesting 'encrypt_ctr' and 'decrypt_ctr'...", end="", flush=True)
+  print(
+    "Testing 'encrypt_ofb' and 'decrypt_ofb' w/o block-size multiple length "
+    "data..."
+  )
+  assert odd_rand_bytes == b"".join(
+    test_cipher.decrypt_ofb(
+      b"".join(test_cipher.encrypt_ofb(odd_rand_bytes, b"12345678")),
+      b"12345678"
+    )
+  )
+  print("Success!")
+  
+  print(
+    "Testing 'encrypt_ctr' and 'decrypt_ctr' w/ block-size multiple length "
+    "data..."
+  )
+  assert rand_bytes == b"".join(
+    test_cipher.decrypt_ctr(
+      b"".join(test_cipher.encrypt_ctr(
+        rand_bytes,
+        blowfish.ctr_counter(412232, operator.xor)
+      )),
+      blowfish.ctr_counter(412232, operator.xor)
+    )
+  )
+  print("Success!")
+  
+  print(
+    "Testing 'encrypt_ctr' and 'decrypt_ctr' w/o block-size multiple length "
+    "data..."
+  )
   assert odd_rand_bytes == b"".join(
     test_cipher.decrypt_ctr(
       b"".join(test_cipher.encrypt_ctr(

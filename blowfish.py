@@ -247,7 +247,7 @@ class Cipher(object):
   
   Encryption & Decryption
   -----------------------
-  Blowfish is a block cipher with a 64-bits (i.e. 8 bytes) block size. As
+  Blowfish is a block cipher with a 64-bits (i.e. 8 bytes) block-size. As
   such, it can fundamentally only operate on 8 bytes of data.
   
   To encrypt or decrypt a single block of data use the :meth:`encrypt_block`
@@ -277,14 +277,14 @@ class Cipher(object):
   | Counter (CTR)             | :meth:`encrypt_ctr`  | :meth:`decrypt_ctr`  |
   +---------------------------+----------------------+----------------------+
   
-  All modes of operation, with the exception of CTR, can only operate on data
-  with a block multiple length (i.e. 8, 16, 32, etc. bytes). CTR mode can
-  work with data of any length.
+  All modes of operation, with the exception of CTR and OFB, can only operate
+  on data that is a multiple of the block-size in length (i.e. 8, 16, 32, etc.
+  bytes). CTR and OFB modes can operate on data of any length.
   
-  Data without a block multiple length can be also used, if it is padded
-  properly.
-  Padding functionality is not implemented in this module, as there are
-  countless schemes and it's relatively easy to roll out your own.
+  Data that is not a multiple of the block-size in length can still be used
+  with modes that expect otherwise (i.e. ECB, CBC, PCBC, CFB), if it is padded
+  properly. Padding functionality is not implemented in this module, as there
+  are countless schemes and it's relatively easy to roll out your own.
   
   .. warning::
       
@@ -463,13 +463,14 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Electronic Codebook (ECB)
     mode of operation.
     
-    ECB mode can only operate on `data` with a block multiple length.
+    ECB mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -491,13 +492,14 @@ class Cipher(object):
     Return an iterator that decrypts `data` using the Electronic Codebook (ECB)
     mode of operation.
     
-    ECB mode can only operate on `data` with a block multiple length.
+    ECB mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -519,7 +521,8 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Cipher-Block Chaining
     (CBC) mode of operation.
     
-    CBC mode can only operate on `data` with a block multiple length.
+    CBC mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
@@ -528,8 +531,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -557,7 +560,8 @@ class Cipher(object):
     Return an iterator that decrypts `data` using the Cipher-Block Chaining
     (CBC) mode of operation.
     
-    CBC mode can only operate on `data` with a block multiple length.
+    CBC mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
@@ -566,8 +570,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -596,7 +600,8 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Propagating Cipher-Block
     Chaining (PCBC) mode of operation.
     
-    PCBC mode can only operate on `data` with a block multiple length.
+    PCBC mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
@@ -605,8 +610,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -635,7 +640,8 @@ class Cipher(object):
     Return an iterator that decrypts `data` using the Propagating Cipher-Block
     Chaining (PCBC) mode of operation.
     
-    PCBC mode can only operate on `data` with a block multiple length.
+    PCBC mode can only operate on `data` that is a multiple of the block-size
+    in length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the decrypted bytes of the corresponding block in `data`.
@@ -644,8 +650,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -686,8 +692,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -726,8 +732,8 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8 bytes.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
+    `data` should be a :obj:`bytes`-like object that is a multiple of the
+    block-size in length (i.e. 8, 16, 32, etc.).
     If it is not, a :exc:`struct.error` exception is raised.
     """
     S1, S2, S3, S4 = self.S
@@ -756,8 +762,7 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Output Feedback (OFB)
     mode of operation.
     
-    Although, OFB mode is capable of operating on `data` of any length, the
-    current implementation does not.
+    OFB mode can operate on `data` of any length.
     
     Each iteration returns a block sized :obj:`bytes` object (i.e. 8 bytes)
     containing the encrypted bytes of the corresponding block in `data`.
@@ -766,9 +771,7 @@ class Cipher(object):
     :obj:`bytes`-like object with exactly 8.
     If it is not, a :exc:`struct.error` exception is raised.
     
-    `data` should be a :obj:`bytes`-like object with a block multiple length
-    (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    `data` should be a :obj:`bytes`-like object (of any length).
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -779,15 +782,34 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
+    extra_bytes = len(data) % 8
+    
     prev_L, prev_R = self._u4_2_unpack(init_vector)
     
-    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+    for plain_L, plain_R in self._u4_2_iter_unpack(
+      data[0:len(data) - extra_bytes]
+    ):
       prev_L, prev_R = encrypt(
         prev_L, prev_R,
         P, S1, S2, S3, S4,
         u4_1_pack, u1_4_unpack
       )
       yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
+    
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[-extra_bytes:],
+          u4_2_pack(
+            *encrypt(
+              prev_L, prev_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
+          )
+        )
+      )
+      
     
   def decrypt_ofb(self, data, init_vector):
     """
@@ -828,7 +850,7 @@ class Cipher(object):
     exhausted.
     A good default is implemented by :func:`blowfish.ctr_counter`.
     
-    `data` should be a :obj:`bytes`-like object (with any length).
+    `data` should be a :obj:`bytes`-like object (of any length).
     """
     S1, S2, S3, S4 = self.S
     P = self.P

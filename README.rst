@@ -106,7 +106,8 @@ practical use. Instead, use one of the implemented modes of operation.
 Electronic Codebook Mode (ECB)
 ##############################
 To encrypt or decrypt data in ECB mode, use `encrypt_ecb` or `decrypt_ecb`
-methods of the `Cipher` object.
+methods of the `Cipher` object. ECB mode can only operate on data that is a
+multiple of the block-size in length.
 
 .. code:: python3
 
@@ -120,7 +121,8 @@ methods of the `Cipher` object.
 Cipher-Block Chaining Mode (CBC)
 ################################
 To encrypt or decrypt data in CBC mode, use `encrypt_cbc` or `decrypt_cbc`
-methods of the `Cipher` object.
+methods of the `Cipher` object. CBC mode can only operate on data that is a
+multiple of the block-size in length.
 
 .. code:: python3
 
@@ -133,7 +135,8 @@ methods of the `Cipher` object.
 Propagating Cipher-Block Chaining Mode (PCBC)
 #############################################
 To encrypt or decrypt data in PCBC mode, use `encrypt_pcbc` or `decrypt_pcbc`
-methods of the `Cipher` object.
+methods of the `Cipher` object. PCBC mode can only operate on data that is a
+multiple of the block-size in length.
 
 .. code:: python3
 
@@ -150,7 +153,7 @@ Cipher Feedback Mode (CFB)
 To encrypt or decrypt data in CFB mode, use `encrypt_cfb` or `decrypt_cfb`
 methods of the `Cipher` object. Although CFB mode can be implemented to allow
 input data of any length, the current implementation does not. So, the input
-data has to be a block multiple in length.
+data has to be a multiple of the block-size in length.
 
 .. code:: python3
 
@@ -162,30 +165,28 @@ data has to be a block multiple in length.
 Output Feedback Mode (OFB)
 ##########################
 To encrypt or decrypt data in OFB mode, use `encrypt_ofb` or `decrypt_ofb`
-methods of the `Cipher` object. Like CFB mode, OFB mode can also
-be implemented to allow input data of any length. As the current
-implementation does not, input data has to be a block multiple in length.
+methods of the `Cipher` object. OFB mode can operate on data of any length.
 
 .. code:: python3
 
-    ofb_ciphertext_iter = cipher.encrypt_ofb(block_multiple_data, iv)
+    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    
+    ofb_ciphertext_iter = cipher.encrypt_ofb(non_block_multiple_data, iv)
     ofb_plaintext_iter = cipher.decrypt_ofb(b"".join(ofb_ciphertext_iter), iv)
     
-    assert block_multiple_data == b"".join(ofb_plaintext_iter)
+    assert non_block_multiple_data == b"".join(ofb_plaintext_iter)
 
 Counter Mode (CTR)
 ##################
 To encrypt or decrypt data in CTR mode, use `encrypt_ctr` or `decrypt_ctr`
-methods of the `Cipher` object. Although you can use any `counter` you want,
-a simple increment by one counter is secure and the most popular. So for
-convenience sake, a simple increment by one counter is implemented by the
-`blowfish.ctr_counter` function.
+methods of the `Cipher` object. CTR mode can operate on data of any length.
+Although you can use any `counter` you want, a simple increment by one counter
+is secure and the most popular. So for convenience sake, a simple increment by
+one counter is implemented by the `blowfish.ctr_counter` function.
 
 .. code:: python3
 
     from operator import xor
-    
-    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
     
     encrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
     decrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
