@@ -226,7 +226,7 @@ class Cipher(object):
   
   Instantiate
   -----------
-  `key` should be a :obj:`bytes` object with a length between 8 and 56 bytes.
+  `key` should be a :obj:`bytes` object with a length between 4 and 56 bytes.
   
   `byte_order` determines how bytes are interpreted as numbers to perform
   mathematical operations on them. It can either be ``"big"`` or ``"little"``.
@@ -299,8 +299,8 @@ class Cipher(object):
     P_array = PI_P_ARRAY,
     S_boxes = PI_S_BOXES
   ):
-    if not 8 <= len(key) <= 56:
-      raise ValueError("key is not between 8 and 56 bytes")
+    if not 4 <= len(key) <= 56:
+      raise ValueError("key is not between 4 and 56 bytes")
     
     if not len(P_array) or len(P_array) % 2 != 0:
       raise ValueError("P array is not an even length sequence")

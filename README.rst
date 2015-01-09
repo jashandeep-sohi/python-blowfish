@@ -77,7 +77,7 @@ First create a `Cipher` object with a `key`.
 
     import blowfish
     
-    cipher = blowfish.Cipher(b"Key must be between 8 and 56 bytes long.")
+    cipher = blowfish.Cipher(b"Key must be between 4 and 56 bytes long.")
     
 By default this initializes a Blowfish cipher that will interpret bytes using
 big-endian byte order. This should not be a problem since most implementations
