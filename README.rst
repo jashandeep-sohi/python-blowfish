@@ -187,8 +187,10 @@ you should implement your own for optimization purposes.
 
     from operator import xor
     
-    encrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
-    decrypt_counter = blowfish.ctr_counter(nonce = 0xfaff1fffffffffff, f = xor)
+    nonce = int.from_bytes(urandom(8), "big")
+    
+    encrypt_counter = blowfish.ctr_counter(nonce, f = xor)
+    decrypt_counter = blowfish.ctr_counter(nonce, f = xor)
     
     ctr_ciphertext_iter = cipher.encrypt_ctr(
       non_block_multiple_data,
