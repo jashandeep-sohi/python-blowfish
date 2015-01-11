@@ -1,5 +1,5 @@
 # blowfish
-# Copyright (C) 2014 Jashandeep Sohi <jashandeep.s.sohi@gmail.com>
+# Copyright (C) 2015 Jashandeep Sohi <jashandeep.s.sohi@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ Blowfish is a block cipher created by Bruce Schneier. It's fast, free and
 well tested. More at <https://www.schneier.com/blowfish.html>.
 """
 
-from struct import Struct
+from struct import Struct, error as struct_error
 from itertools import cycle as iter_cycle
 
 __version__ = "0.5.3"
@@ -415,15 +415,19 @@ class Cipher(object):
     Return a :obj:`bytes` object containing the encrypted bytes of a `block`.
     
     `block` should be a :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S0, S1, S2, S3 = self.S
     P = self.P
     
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
-        
-    L, R = self._u4_2_unpack(block)
+    
+    try:
+      L, R = self._u4_2_unpack(block)
+    except struct_error:
+      raise ValueError("block is not 8 bytes in length")
+    
     for p1, p2 in P[:-1]:
       L ^= p1
       a, b, c, d = u1_4_unpack(u4_1_pack(L))
@@ -439,7 +443,7 @@ class Cipher(object):
     Return a :obj:`bytes` object containing the decrypted bytes of a `block`.
     
     `block` should be a :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.      
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S0, S1, S2, S3 = self.S
     P = self.P
@@ -447,7 +451,11 @@ class Cipher(object):
     u4_1_pack = self._u4_1_pack
     u1_4_unpack = self._u1_4_unpack
     
-    L, R = self._u4_2_unpack(block)
+    try:
+      L, R = self._u4_2_unpack(block)
+    except struct_error:
+      raise ValueError("block is not 8 bytes in length")
+    
     for p2, p1 in P[:0:-1]:
       L ^= p1
       a, b, c, d = u1_4_unpack(u4_1_pack(L))
@@ -471,7 +479,7 @@ class Cipher(object):
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -482,7 +490,12 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for plain_L, plain_R in LR_iter:
       yield u4_2_pack(
         *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
@@ -500,7 +513,7 @@ class Cipher(object):
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -511,7 +524,12 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for cipher_L, cipher_R in LR_iter:
       yield u4_2_pack(
         *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
@@ -529,11 +547,11 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -544,9 +562,17 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    try:
+      prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
-    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for plain_L, plain_R in LR_iter:
       prev_cipher_L, prev_cipher_R = encrypt(
         prev_cipher_L ^ plain_L,
         prev_cipher_R ^ plain_R,
@@ -568,11 +594,11 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -583,9 +609,17 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    try:
+      prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for cipher_L, cipher_R in LR_iter:
       L, R = decrypt(
         cipher_L, cipher_R,
         P, S1, S2, S3, S4,
@@ -608,11 +642,11 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -623,9 +657,17 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    init_L, init_R = self._u4_2_unpack(init_vector)
+    try:
+      init_L, init_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
-    for plain_L, plain_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for plain_L, plain_R in LR_iter:
       cipher_L, cipher_R = encrypt(
         init_L ^ plain_L, init_R ^ plain_R,
         P, S1, S2, S3, S4,
@@ -648,11 +690,11 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object that is a multiple of the
     block-size in length (i.e. 8, 16, 32, etc.).
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     """
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -663,9 +705,17 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    init_L, init_R = self._u4_2_unpack(init_vector)
+    try:
+      init_L, init_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(data):
+    try:
+      LR_iter = self._u4_2_iter_unpack(data)
+    except struct_error:
+      raise ValueError("data is not a multiple of the block-size in length")
+    
+    for cipher_L, cipher_R in LR_iter:
       plain_L, plain_R = decrypt(
         cipher_L, cipher_R,
         P, S1, S2, S3, S4,
@@ -692,7 +742,7 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object (of any length).
     """
@@ -707,7 +757,10 @@ class Cipher(object):
     
     extra_bytes = len(data) % 8
     
-    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    try:
+      prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
     for plain_L, plain_R in self._u4_2_iter_unpack(
       data[0:len(data) - extra_bytes]
@@ -750,7 +803,7 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object (of any length).
     """
@@ -765,7 +818,10 @@ class Cipher(object):
     
     extra_bytes = len(data) % 8
     
-    prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    try:
+      prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(
       data[0:len(data) - extra_bytes]
@@ -808,7 +864,7 @@ class Cipher(object):
     
     `init_vector` is the initialization vector and should be a
     :obj:`bytes`-like object with exactly 8 bytes.
-    If it is not, a :exc:`struct.error` exception is raised.
+    If it is not, a :exc:`ValueError` exception is raised.
     
     `data` should be a :obj:`bytes`-like object (of any length).
     """
@@ -823,7 +879,10 @@ class Cipher(object):
     
     extra_bytes = len(data) % 8
     
-    prev_L, prev_R = self._u4_2_unpack(init_vector)
+    try:
+      prev_L, prev_R = self._u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
     
     for plain_L, plain_R in self._u4_2_iter_unpack(
       data[0:len(data) - extra_bytes]
@@ -882,8 +941,8 @@ class Cipher(object):
         
     `counter` should be an iterable sequence of 64-bit integers which are
     guaranteed not to repeat for a long time.
-    If the integers are larger than 64-bits, a :exc:`struct.error` exception is
-    raised.
+    If any integer in the sequence is not less than 2^64, a :exc:`ValueError`
+    exception is raised.
     `counter` should be at least as long as `data`, otherwise the returned
     iterator will only encrypt `data` partially, stopping when `counter` is
     exhausted.
@@ -909,7 +968,11 @@ class Cipher(object):
       self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
       counter
     ):
-      counter_L, counter_R = u4_2_unpack(u8_1_pack(counter_n))
+      try:
+        counter_L, counter_R = u4_2_unpack(u8_1_pack(counter_n))
+      except struct_error:
+        raise ValueError("integer in counter is not less than 2^64")
+      
       counter_L, counter_R = encrypt(
         counter_L, counter_R,
         P, S1, S2, S3, S4,
@@ -918,7 +981,11 @@ class Cipher(object):
       yield u4_2_pack(plain_L ^ counter_L, plain_R ^ counter_R)
       
     if extra_bytes:
-      counter_L, counter_R = u4_2_unpack(u8_1_pack(next(counter)))
+      try:
+        counter_L, counter_R = u4_2_unpack(u8_1_pack(next(counter)))
+      except struct_error:
+        raise ValueError("integer in counter is not less than 2^64")
+      
       counter_L, counter_R = encrypt(
         counter_L, counter_R,
         P, S1, S2, S3, S4,
