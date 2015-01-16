@@ -588,8 +588,6 @@ class Cipher(object):
     )
     yield last_block[:extra_bytes]
     
-    
-    
   def decrypt_ecb_cts(self, data):
     """
     Return an iterator that decrypts `data` using the Electronic Codebook with
@@ -845,9 +843,8 @@ class Cipher(object):
     CFB mode can operate on `data` of any length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
-    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
-    block in `data`. The last iteration may return a :obj:`bytes` object with a
-    length less than the block-size, if `data` is not a multiple of the
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
     `init_vector` is the initialization vector and should be a
@@ -906,9 +903,8 @@ class Cipher(object):
     CFB mode can operate on `data` of any length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
-    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
-    block in `data`. The last iteration may return a :obj:`bytes` object with a
-    length less than the block-size, if `data` is not a multiple of the
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
     `init_vector` is the initialization vector and should be a
@@ -967,9 +963,8 @@ class Cipher(object):
     OFB mode can operate on `data` of any length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
-    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
-    block in `data`. The last iteration may return a :obj:`bytes` object with a
-    length less than the block-size, if `data` is not a multiple of the
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
     `init_vector` is the initialization vector and should be a
@@ -1044,9 +1039,8 @@ class Cipher(object):
     CTR mode can operate on `data` of any length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
-    object (i.e. 8 bytes) containing the encrypted bytes of the corresponding
-    block in `data`. The last iteration may return a :obj:`bytes` object with a
-    length less than the block-size, if `data` is not a multiple of the
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
         
     `counter` should be an iterable sequence of 64-bit integers which are
