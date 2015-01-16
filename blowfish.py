@@ -534,6 +534,116 @@ class Cipher(object):
         *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
       
+  def encrypt_ecb_cts(self, data):
+    """
+    Return an iterator that encrypts `data` using the Electronic Codebook with
+    Ciphertext Stealing (ECB-CTS) mode of operation.
+    
+    ECB-CTS mode can only operate on `data` that is at least 8 bytes in length.
+    
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
+    
+    `data` should be a :obj:`bytes`-like object that is at least 8 bytes in
+    length.
+    If it is not, a :exc:`ValueError` exception is raised.
+    """
+    S1, S2, S3, S4 = self.S
+    P = self.P
+    
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    u4_2_pack = self._u4_2_pack
+    u4_2_unpack = self._u4_2_unpack
+    encrypt = self._encrypt
+    
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    
+    if data_len < 8:
+      raise ValueError("data is not at least 8 bytes in length")
+        
+    for plain_L, plain_R in self._u4_2_iter_unpack(
+      data[:-extra_bytes - 8]
+    ):
+      yield u4_2_pack(
+        *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      )
+    
+    plain_L, plain_R = u4_2_unpack(
+      data[-extra_bytes - 8 : data_len - extra_bytes]
+    )
+    last_block = u4_2_pack(
+      *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    
+    L, R = u4_2_unpack(
+      data[data_len - extra_bytes:] + last_block[extra_bytes:]
+    )
+    
+    yield u4_2_pack(
+      *encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    yield last_block[:extra_bytes]
+    
+    
+    
+  def decrypt_ecb_cts(self, data):
+    """
+    Return an iterator that decrypts `data` using the Electronic Codebook with
+    Ciphertext Stealing (ECB-CTS) mode of operation.
+    
+    ECB-CTS mode can only operate on `data` that is at least 8 bytes in length.
+    
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
+    
+    `data` should be a :obj:`bytes`-like object that is at least 8 bytes in
+    length.
+    If it is not, a :exc:`ValueError` exception is raised.
+    """
+    S1, S2, S3, S4 = self.S
+    P = self.P
+    
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    u4_2_pack = self._u4_2_pack
+    u4_2_unpack = self._u4_2_unpack
+    decrypt = self._decrypt
+    
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    
+    if data_len < 8:
+      raise ValueError("data is not at least 8 bytes in length")
+        
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(
+      data[:-extra_bytes - 8]
+    ):
+      yield u4_2_pack(
+        *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      )
+    
+    cipher_L, cipher_R = u4_2_unpack(
+      data[-extra_bytes - 8 : data_len - extra_bytes]
+    )
+    last_block = u4_2_pack(
+      *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    
+    L, R = u4_2_unpack(
+      data[data_len - extra_bytes:] + last_block[extra_bytes:]
+    )
+    
+    yield u4_2_pack(
+      *decrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    yield last_block[:extra_bytes]
+    
   def encrypt_cbc(self, data, init_vector):
     """
     Return an iterator that encrypts `data` using the Cipher-Block Chaining
