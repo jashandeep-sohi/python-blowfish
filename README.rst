@@ -15,6 +15,7 @@ Features
 - Fast (well, as fast you can possibly go using only Python 3.4+)
 - Efficient; generators/iterators are used liberally to reduce memory usage
 - Electronic Codebook (ECB) mode
+- Electronic Codebook with Ciphertext Stealing (ECB-CTS) mode
 - Cipher-Block Chaining (CBC) mode
 - Propagating Cipher-Block Chaining (PCBC) mode
 - Cipher Feedback (CFB) mode
@@ -118,6 +119,23 @@ multiple of the block-size in length.
     
     assert block_multiple_data == b"".join(ecb_plaintext_iter)
     
+Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
+############################################################
+To encrypt or decrypt data in ECB-CTS mode, use `encrypt_ecb_cts` or 
+`decrypt_ecb_cts` methods of the `Cipher` object. ECB-CTS mode can operate
+on data of any length as long as it is at least 8 bytes long.
+
+.. code:: python3
+
+    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    
+    ecb_cts_ciphertext_iter = cipher.encrypt_ecb_cts(non_block_multiple_data)
+    ecb_cts_plaintext_iter = cipher.decrypt_ecb_cts(
+      b"".join(ecb_cts_ciphertext_iter)
+    )
+    
+    assert non_block_multiple_data == b"".join(ecb_cts_plaintext_iter)
+    
 Cipher-Block Chaining Mode (CBC)
 ################################
 To encrypt or decrypt data in CBC mode, use `encrypt_cbc` or `decrypt_cbc`
@@ -179,7 +197,7 @@ Counter Mode (CTR)
 To encrypt or decrypt data in CTR mode, use `encrypt_ctr` or `decrypt_ctr`
 methods of the `Cipher` object. CTR mode can operate on data of any length.
 Although you can use any `counter` you want, a simple increment by one counter
-is secure and the most popular. So for convenience sake, a simple increment by
+is secure and the most popular. So for convenience sake a simple increment by
 one counter is implemented by the `blowfish.ctr_counter` function. However,
 you should implement your own for optimization purposes.
 
