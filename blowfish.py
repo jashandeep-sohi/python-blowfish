@@ -550,6 +550,10 @@ class Cipher(object):
     length.
     If it is not, a :exc:`ValueError` exception is raised.
     """
+    data_len = len(data)
+    if data_len < 8:
+      raise ValueError("data is not at least 8 bytes in length")
+      
     S1, S2, S3, S4 = self.S
     P = self.P
     
@@ -559,28 +563,26 @@ class Cipher(object):
     u4_2_unpack = self._u4_2_unpack
     encrypt = self._encrypt
     
-    data_len = len(data)
     extra_bytes = data_len % 8
-    
-    if data_len < 8:
-      raise ValueError("data is not at least 8 bytes in length")
+    last_block_stop_i = data_len - extra_bytes
+    last_block_start_i = last_block_stop_i - 8
         
     for plain_L, plain_R in self._u4_2_iter_unpack(
-      data[:-extra_bytes - 8]
+      data[:last_block_start_i]
     ):
       yield u4_2_pack(
         *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
     
     plain_L, plain_R = u4_2_unpack(
-      data[-extra_bytes - 8 : data_len - extra_bytes]
+      data[last_block_start_i:last_block_stop_i]
     )
     last_block = u4_2_pack(
       *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     )
     
     L, R = u4_2_unpack(
-      data[data_len - extra_bytes:] + last_block[extra_bytes:]
+      data[last_block_stop_i:] + last_block[extra_bytes:]
     )
     
     yield u4_2_pack(
@@ -604,6 +606,10 @@ class Cipher(object):
     length.
     If it is not, a :exc:`ValueError` exception is raised.
     """
+    data_len = len(data)
+    if data_len < 8:
+      raise ValueError("data is not at least 8 bytes in length")
+      
     S1, S2, S3, S4 = self.S
     P = self.P
     
@@ -613,28 +619,26 @@ class Cipher(object):
     u4_2_unpack = self._u4_2_unpack
     decrypt = self._decrypt
     
-    data_len = len(data)
     extra_bytes = data_len % 8
-    
-    if data_len < 8:
-      raise ValueError("data is not at least 8 bytes in length")
+    last_block_stop_i = data_len - extra_bytes
+    last_block_start_i = last_block_stop_i - 8
         
     for cipher_L, cipher_R in self._u4_2_iter_unpack(
-      data[:-extra_bytes - 8]
+      data[:last_block_start_i]
     ):
       yield u4_2_pack(
         *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
     
     cipher_L, cipher_R = u4_2_unpack(
-      data[-extra_bytes - 8 : data_len - extra_bytes]
+      data[last_block_start_i:last_block_stop_i]
     )
     last_block = u4_2_pack(
       *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     )
     
     L, R = u4_2_unpack(
-      data[data_len - extra_bytes:] + last_block[extra_bytes:]
+      data[last_block_stop_i:] + last_block[extra_bytes:]
     )
     
     yield u4_2_pack(
@@ -862,7 +866,9 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    extra_bytes = len(data) % 8
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
     
     try:
       prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
@@ -870,7 +876,7 @@ class Cipher(object):
       raise ValueError("initialization vector is not 8 bytes in length")
     
     for plain_L, plain_R in self._u4_2_iter_unpack(
-      data[0:len(data) - extra_bytes]
+      data[0:last_block_stop_i]
     ):
       prev_cipher_L, prev_cipher_R = encrypt(
         prev_cipher_L, prev_cipher_R,
@@ -881,19 +887,18 @@ class Cipher(object):
       prev_cipher_R ^= plain_R
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
       
-    if extra_bytes:
-      yield bytes(
-        b ^ n for b, n in zip(
-          data[-extra_bytes:],
-          u4_2_pack(
-            *encrypt(
-              prev_cipher_L, prev_cipher_R,
-              P, S1, S2, S3, S4,
-              u4_1_pack, u1_4_unpack
-            )
+    yield bytes(
+      b ^ n for b, n in zip(
+        data[last_block_stop_i:],
+        u4_2_pack(
+          *encrypt(
+            prev_cipher_L, prev_cipher_R,
+            P, S1, S2, S3, S4,
+            u4_1_pack, u1_4_unpack
           )
         )
       )
+    )
     
   def decrypt_cfb(self, data, init_vector):
     """
@@ -922,7 +927,9 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    extra_bytes = len(data) % 8
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
     
     try:
       prev_cipher_L, prev_cipher_R = self._u4_2_unpack(init_vector)
@@ -930,7 +937,7 @@ class Cipher(object):
       raise ValueError("initialization vector is not 8 bytes in length")
     
     for cipher_L, cipher_R in self._u4_2_iter_unpack(
-      data[0:len(data) - extra_bytes]
+      data[0:last_block_stop_i]
     ):
       prev_cipher_L, prev_cipher_R = encrypt(
         prev_cipher_L, prev_cipher_R,
@@ -941,18 +948,17 @@ class Cipher(object):
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
       
-    if extra_bytes:
-      yield bytes(
-        b ^ n for b, n in zip(
-          data[-extra_bytes:],
-          u4_2_pack(
-            *encrypt(
-              prev_cipher_L, prev_cipher_R,
-              P, S1, S2, S3, S4,
-              u4_1_pack, u1_4_unpack
-            )
+    yield bytes(
+      b ^ n for b, n in zip(
+        data[last_block_stop_i:],
+        u4_2_pack(
+          *encrypt(
+            prev_cipher_L, prev_cipher_R,
+            P, S1, S2, S3, S4,
+            u4_1_pack, u1_4_unpack
           )
         )
+      )
       )
     
   def encrypt_ofb(self, data, init_vector):
@@ -982,7 +988,9 @@ class Cipher(object):
     
     u4_2_pack = self._u4_2_pack
     
-    extra_bytes = len(data) % 8
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
     
     try:
       prev_L, prev_R = self._u4_2_unpack(init_vector)
@@ -990,7 +998,7 @@ class Cipher(object):
       raise ValueError("initialization vector is not 8 bytes in length")
     
     for plain_L, plain_R in self._u4_2_iter_unpack(
-      data[0:len(data) - extra_bytes]
+      data[0:last_block_stop_i]
     ):
       prev_L, prev_R = encrypt(
         prev_L, prev_R,
@@ -999,19 +1007,18 @@ class Cipher(object):
       )
       yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
     
-    if extra_bytes:
-      yield bytes(
-        b ^ n for b, n in zip(
-          data[-extra_bytes:],
-          u4_2_pack(
-            *encrypt(
-              prev_L, prev_R,
-              P, S1, S2, S3, S4,
-              u4_1_pack, u1_4_unpack
-            )
+    yield bytes(
+      b ^ n for b, n in zip(
+        data[last_block_stop_i:],
+        u4_2_pack(
+          *encrypt(
+            prev_L, prev_R,
+            P, S1, S2, S3, S4,
+            u4_1_pack, u1_4_unpack
           )
         )
       )
+    )
       
     
   def decrypt_ofb(self, data, init_vector):
@@ -1066,10 +1073,12 @@ class Cipher(object):
     u4_2_unpack = self._u4_2_unpack
     u8_1_pack = self._u8_1_pack
     
-    extra_bytes = len(data) % 8
+    data_len = len(data)
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
     
     for (plain_L, plain_R), counter_n in zip(
-      self._u4_2_iter_unpack(data[0:len(data) - extra_bytes]),
+      self._u4_2_iter_unpack(data[0:last_block_stop_i]),
       counter
     ):
       try:
@@ -1097,7 +1106,7 @@ class Cipher(object):
       )
       yield bytes(
         b ^ n for b, n in zip(
-          data[-extra_bytes:],
+          data[last_block_stop_i:],
           u4_2_pack(counter_L, counter_R)
         )
       )
