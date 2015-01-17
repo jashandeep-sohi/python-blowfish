@@ -257,29 +257,34 @@ class Cipher(object):
   block of data. Luckily (or rather mathematically), block ciphers can be used
   in a certain way, called a "mode of operation", to work with data larger
   (or smaller) than the block size.
-  So far the following modes of operation have been implemented.
   
-  +---------------------------+----------------------+----------------------+
-  | Mode of Operation         | Encryption           | Decryption           |
-  +===========================+======================+======================+
-  | Electronic Codebook (ECB) | :meth:`encrypt_ecb`  | :meth:`decrypt_ecb`  |
-  +---------------------------+----------------------+----------------------+
-  | Cipher-Block Chaining     | :meth:`encrypt_cbc`  | :meth:`decrypt_cbc`  |
-  | (CBC)                     |                      |                      |
-  +---------------------------+----------------------+----------------------+
-  | Propagating Cipher-Block  | :meth:`encrypt_pcbc` | :meth:`decrypt_pcbc` |
-  | Chaining (PCBC)           |                      |                      |
-  +---------------------------+----------------------+----------------------+
-  | Cipher Feedback (CFB)     | :meth:`encrypt_cfb`  | :meth:`decrypt_cfb`  |
-  +---------------------------+----------------------+----------------------+
-  | Output Feedback (OFB)     | :meth:`encrypt_ofb`  | :meth:`decrypt_ofb`  |
-  +---------------------------+----------------------+----------------------+
-  | Counter (CTR)             | :meth:`encrypt_ctr`  | :meth:`decrypt_ctr`  |
-  +---------------------------+----------------------+----------------------+
+  So far the following modes of operation have been implemented:
   
-  All modes of operation, with the exception of CTR, CFB and OFB, can only
-  operate on data that is a multiple of the block-size in length (i.e. 8, 16,
-  32, etc. bytes). CTR, CFB and OFB modes can operate on data of any length.
+  Electronic Codebook (ECB)
+    :meth:`encrypt_ecb` & :meth:`decrypt_ecb`
+  
+  Electronic Codebook with Ciphertext Stealing (ECB-CTS)
+    :meth:`encrypt_ecb_cts` & :meth:`decrypt_ecb_cts`
+  
+  Cipher-Block Chaining (CBC)
+    :meth:`encrypt_ecb_cts` & :meth:`decrypt_ecb_cts`
+  
+  Propagating Cipher-Block Chaining (PCBC)
+    :meth:`encrypt_pcbc` & :meth:`decrypt_pcbc`
+  
+  Cipher Feedback (CFB)
+    :meth:`encrypt_cfb` & :meth:`decrypt_cfb`
+  
+  Output Feedback (OFB)
+    :meth:`encrypt_ofb` & :meth:`decrypt_ofb`
+  
+  Counter (CTR)
+    :meth:`encrypt_ctr` & :meth:`decrypt_ctr`
+  
+  ECB, CBC & PCBC modes can only operate on data that is a multiple of the
+  block-size in length (i.e. 8, 16, 32, etc. bytes).
+  ECB-CTS mode can operate on data that is at least 8 bytes in length.
+  CTR, CFB and OFB modes can operate on data of any length.
   
   Data that is not a multiple of the block-size in length can still be used
   with modes that expect otherwise (i.e. ECB, CBC, PCBC), if it is padded
