@@ -571,30 +571,26 @@ class Cipher(object):
     
     extra_bytes = data_len % 8
     last_block_stop_i = data_len - extra_bytes
-    last_block_start_i = last_block_stop_i - 8
-        
-    for plain_L, plain_R in self._u4_2_iter_unpack(
-      data[:last_block_start_i]
-    ):
-      yield u4_2_pack(
+    
+    plain_L, plain_R = u4_2_unpack(data[0:8])
+    cipher_block = u4_2_pack(
+      *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    
+    for plain_L, plain_R in self._u4_2_iter_unpack(data[8:last_block_stop_i]):
+      yield cipher_block
+      cipher_block = u4_2_pack(
         *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
     
     plain_L, plain_R = u4_2_unpack(
-      data[last_block_start_i:last_block_stop_i]
-    )
-    last_block = u4_2_pack(
-      *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
-    )
-    
-    L, R = u4_2_unpack(
-      data[last_block_stop_i:] + last_block[extra_bytes:]
+      data[last_block_stop_i:] + cipher_block[extra_bytes:]
     )
     
     yield u4_2_pack(
-      *encrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      *encrypt(plain_L, plain_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     )
-    yield last_block[:extra_bytes]
+    yield cipher_block[:extra_bytes]
     
   def decrypt_ecb_cts(self, data):
     """
@@ -628,30 +624,26 @@ class Cipher(object):
     
     extra_bytes = data_len % 8
     last_block_stop_i = data_len - extra_bytes
-    last_block_start_i = last_block_stop_i - 8
         
-    for cipher_L, cipher_R in self._u4_2_iter_unpack(
-      data[:last_block_start_i]
-    ):
-      yield u4_2_pack(
+    cipher_L, cipher_R = u4_2_unpack(data[0:8])
+    plain_block = u4_2_pack(
+      *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+    )
+    
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(data[8:last_block_stop_i]):
+      yield plain_block
+      plain_block = u4_2_pack(
         *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
       )
     
     cipher_L, cipher_R = u4_2_unpack(
-      data[last_block_start_i:last_block_stop_i]
-    )
-    last_block = u4_2_pack(
-      *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
-    )
-    
-    L, R = u4_2_unpack(
-      data[last_block_stop_i:] + last_block[extra_bytes:]
+      data[last_block_stop_i:] + plain_block[extra_bytes:]
     )
     
     yield u4_2_pack(
-      *decrypt(L, R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
+      *decrypt(cipher_L, cipher_R, P, S1, S2, S3, S4, u4_1_pack, u1_4_unpack)
     )
-    yield last_block[:extra_bytes]
+    yield plain_block[:extra_bytes]
     
   def encrypt_cbc(self, data, init_vector):
     """
