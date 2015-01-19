@@ -283,7 +283,7 @@ class Cipher(object):
   
   ECB, CBC & PCBC modes can only operate on data that is a multiple of the
   block-size in length (i.e. 8, 16, 32, etc. bytes).
-  ECB-CTS mode can operate on data that is at least 8 bytes in length.
+  ECB-CTS mode can operate on data that is greater than 8 bytes long.
   CTR, CFB and OFB modes can operate on data of any length.
   
   Data that is not a multiple of the block-size in length can still be used
@@ -544,20 +544,21 @@ class Cipher(object):
     Return an iterator that encrypts `data` using the Electronic Codebook with
     Ciphertext Stealing (ECB-CTS) mode of operation.
     
-    ECB-CTS mode can only operate on `data` that is at least 8 bytes in length.
+    ECB-CTS mode can only operate on `data` that is greater than 8 bytes in
+    length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
     object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
     with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
-    `data` should be a :obj:`bytes`-like object that is at least 8 bytes in
+    `data` should be a :obj:`bytes`-like object that greater than 8 bytes in
     length.
     If it is not, a :exc:`ValueError` exception is raised.
     """
     data_len = len(data)
-    if data_len < 8:
-      raise ValueError("data is not at least 8 bytes in length")
+    if data_len <= 8:
+      raise ValueError("data is not greater than 8 bytes in length")
       
     S1, S2, S3, S4 = self.S
     P = self.P
@@ -600,20 +601,21 @@ class Cipher(object):
     Return an iterator that decrypts `data` using the Electronic Codebook with
     Ciphertext Stealing (ECB-CTS) mode of operation.
     
-    ECB-CTS mode can only operate on `data` that is at least 8 bytes in length.
+    ECB-CTS mode can only operate on `data` that is greater than 8 bytes in
+    length.
     
     Each iteration, except the last, always returns a block-sized :obj:`bytes`
     object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
     with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
-    `data` should be a :obj:`bytes`-like object that is at least 8 bytes in
+    `data` should be a :obj:`bytes`-like object that is greater than 8 bytes in
     length.
     If it is not, a :exc:`ValueError` exception is raised.
     """
     data_len = len(data)
-    if data_len < 8:
-      raise ValueError("data is not at least 8 bytes in length")
+    if data_len <= 8:
+      raise ValueError("data is not greater than 8 bytes in length")
       
     S1, S2, S3, S4 = self.S
     P = self.P
