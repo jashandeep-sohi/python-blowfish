@@ -90,9 +90,12 @@ First create a `Cipher` object with a `key`.
     cipher = blowfish.Cipher(b"Key must be between 4 and 56 bytes long.")
     
 By default this initializes a Blowfish cipher that will interpret bytes using
-big-endian byte order. This should not be a problem since most implementations
-use big-endian byte order as well. However, should the need arrise to use
-little-endian byte order, provide ``"little"`` as the second argument.
+the big-endian byte order. Should the need arrise to use the little-endian byte
+order, provide ``"little"`` as the second argument.
+
+.. code:: python3
+
+    cipher_little = blowfish.Cipher(b"my key", byte_order = "little")
     
 Block
 #####
