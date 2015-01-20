@@ -121,12 +121,12 @@ multiple of the block-size in length.
 
 .. code:: python3
 
-    block_multiple_data = urandom(10 * 8) # data to encrypt
+    data = urandom(10 * 8) # data to encrypt
     
-    ecb_ciphertext_iter = cipher.encrypt_ecb(block_multiple_data)
-    ecb_plaintext_iter = cipher.decrypt_ecb(b"".join(ecb_ciphertext_iter))
+    data_encrypted = b"".join(cipher.encrypt_ecb(data))
+    data_decrypted = b"".join(cipher.decrypt_ecb(data_encrypted)
     
-    assert block_multiple_data == b"".join(ecb_plaintext_iter)
+    assert data == data_decrypted
     
 Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
 ############################################################
@@ -136,14 +136,12 @@ on data of any length greater than 8 bytes.
 
 .. code:: python3
 
-    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    data = urandom(10 * 8 + 5) # data to encrypt
     
-    ecb_cts_ciphertext_iter = cipher.encrypt_ecb_cts(non_block_multiple_data)
-    ecb_cts_plaintext_iter = cipher.decrypt_ecb_cts(
-      b"".join(ecb_cts_ciphertext_iter)
-    )
+    data_encrypted = b"".join(cipher.encrypt_ecb_cts(data))
+    data_decrypted = b"".join(cipher.decrypt_ecb_cts(data_encrypted))
     
-    assert non_block_multiple_data == b"".join(ecb_cts_plaintext_iter)
+    assert data == data_decrypted
     
 Cipher-Block Chaining Mode (CBC)
 ################################
@@ -153,11 +151,13 @@ multiple of the block-size in length.
 
 .. code:: python3
 
+    data = urandom(10 * 8) # data to encrypt
     iv = urandom(8) # initialization vector
-    cbc_ciphertext_iter = cipher.encrypt_cbc(block_multiple_data, iv)
-    cbc_plaintext_iter = cipher.decrypt_cbc(b"".join(cbc_ciphertext_iter), iv)
     
-    assert block_multiple_data == b"".join(cbc_plaintext_iter)
+    data_encrypted = b"".join(cipher.encrypt_cbc(data, iv))
+    data_decrypted = b"".join(cipher.decrypt_cbc(data_encrypted, iv))
+    
+    assert data == data_decrypted
     
 Cipher-Block Chaining with Ciphertext Stealing (CBC-CTS)
 ########################################################
@@ -167,14 +167,13 @@ on data of any length greater than 8 bytes.
 
 .. code:: python3
 
-    cbc_cts_ciphertext_iter = cipher.encrypt_cbc_cts(
-      non_block_multiple_data, iv
-    )
-    cbc_cts_plaintext_iter = cipher.decrypt_cbc_cts(
-      b"".join(cbc_cts_ciphertext_iter), iv
-    )
+    data = urandom(10 * 8 + 6) # data to encrypt
+    iv = urandom(8) # initialization vector
     
-    assert non_block_multiple_data == b"".join(cbc_cts_plaintext_iter)
+    data_encrypted = b"".join(cipher.encrypt_cbc_cts(data, iv))
+    data_decrypted = b"".join(cipher.decrypt_cbc_cts(data_encrypted, iv))
+    
+    assert data == data_decrypted
 
 Propagating Cipher-Block Chaining Mode (PCBC)
 #############################################
@@ -184,13 +183,13 @@ multiple of the block-size in length.
 
 .. code:: python3
 
-    pcbc_ciphertext_iter = cipher.encrypt_pcbc(block_multiple_data, iv)
-    pcbc_plaintext_iter = cipher.decrypt_pcbc(
-      b"".join(pcbc_ciphertext_iter),
-      iv
-    )
+    data = urandom(10 * 8) # data to encrypt
+    iv = urandom(8) # initialization vector
     
-    assert block_multiple_data == b"".join(pcbc_plaintext_iter)
+    data_encrypted = b"".join(cipher.encrypt_pcbc(data, iv))
+    data_decrypted = b"".join(cipher.decrypt_pcbc(data_encrypted, iv))
+    
+    assert data == data_decrypted
 
 Cipher Feedback Mode (CFB)
 ##########################
@@ -199,12 +198,13 @@ methods of the `Cipher` object. CFB mode can operate on data of any length.
 
 .. code:: python3
 
-    non_block_multiple_data = urandom(10 * 8 + 5) # data to encrypt
+    data = urandom(10 * 8 + 7) # data to encrypt
+    iv = urandom(8) # initialization vector
     
-    cfb_ciphertext_iter = cipher.encrypt_cfb(non_block_multiple_data, iv)
-    cfb_plaintext_iter = cipher.decrypt_cfb(b"".join(cfb_ciphertext_iter), iv)
+    data_encrypted = b"".join(cipher.encrypt_cfb(data, iv))
+    data_decrypted = b"".join(cipher.decrypt_cfb(data_encrypted, iv))
     
-    assert non_block_multiple_data == b"".join(cfb_plaintext_iter)
+    assert data == data_decrypted
 
 Output Feedback Mode (OFB)
 ##########################
@@ -213,10 +213,13 @@ methods of the `Cipher` object. OFB mode can operate on data of any length.
 
 .. code:: python3
     
-    ofb_ciphertext_iter = cipher.encrypt_ofb(non_block_multiple_data, iv)
-    ofb_plaintext_iter = cipher.decrypt_ofb(b"".join(ofb_ciphertext_iter), iv)
+    data = urandom(10 * 8 + 1) # data to encrypt
+    iv = urandom(8) # initialization vector
     
-    assert non_block_multiple_data == b"".join(ofb_plaintext_iter)
+    data_encrypted = b"".join(cipher.encrypt_ofb(data, iv))
+    data_decrypted = b"".join(cipher.decrypt_ofb(data_encrypted, iv))
+    
+    assert data == data_decrypted
 
 Counter Mode (CTR)
 ##################
@@ -231,21 +234,16 @@ you should implement your own for optimization purposes.
 
     from operator import xor
     
+    data = urandom(10 * 8 + 2) # data to encrypt
+    
+    # increment by one counters
     nonce = int.from_bytes(urandom(8), "big")
+    enc_counter = blowfish.ctr_counter(nonce, f = xor)
+    dec_counter = blowfish.ctr_counter(nonce, f = xor)
     
-    encrypt_counter = blowfish.ctr_counter(nonce, f = xor)
-    decrypt_counter = blowfish.ctr_counter(nonce, f = xor)
+    data_encrypted = b"".join(cipher.encrypt_ctr(data, enc_counter))
+    data_decrypted = b"".join(cipher.decrypt_ctr(data_encrypted, dec_counter))
     
-    ctr_ciphertext_iter = cipher.encrypt_ctr(
-      non_block_multiple_data,
-      encrypt_counter
-    )
-    ctr_plaintext_iter = cipher.decrypt_ctr(
-      b"".join(ctr_ciphertext_iter),
-      decrypt_counter
-    )
-    
-    assert block_multiple_data == b"".join(ctr_plaintext_iter)
+    assert data == data_decrypted
 
-    
 .. vim: tabstop=2 expandtab
