@@ -24,7 +24,7 @@ well tested. More at <https://www.schneier.com/blowfish.html>.
 from struct import Struct, error as struct_error
 from itertools import cycle as iter_cycle
 
-__version__ = "0.5.3"
+__version__ = "0.5.4"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -268,6 +268,9 @@ class Cipher(object):
   
   Cipher-Block Chaining (CBC)
     :meth:`encrypt_ecb_cts` & :meth:`decrypt_ecb_cts`
+    
+  Cipher-Block Chaining with Ciphertext Stealing (CBC-CTS)
+    :meth:`encrypt_cbc_cts` & :meth:`decrypt_cbc_cts`
   
   Propagating Cipher-Block Chaining (PCBC)
     :meth:`encrypt_pcbc` & :meth:`decrypt_pcbc`
@@ -283,7 +286,8 @@ class Cipher(object):
   
   ECB, CBC & PCBC modes can only operate on data that is a multiple of the
   block-size in length (i.e. 8, 16, 32, etc. bytes).
-  ECB-CTS mode can operate on data that is greater than 8 bytes long.
+  ECB-CTS and CBC-CTS modes can onlly operate on data that is greater than 8
+  bytes long.
   CTR, CFB and OFB modes can operate on data of any length.
   
   Data that is not a multiple of the block-size in length can still be used
@@ -552,7 +556,7 @@ class Cipher(object):
     with a length less than the block-size, if `data` is not a multiple of the
     block-size in length.
     
-    `data` should be a :obj:`bytes`-like object that greater than 8 bytes in
+    `data` should be a :obj:`bytes`-like object that is greater than 8 bytes in
     length.
     If it is not, a :exc:`ValueError` exception is raised.
     """
@@ -740,6 +744,156 @@ class Cipher(object):
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
       
+  def encrypt_cbc_cts(self, data, init_vector):
+    """
+    Return an iterator that encrypts `data` using the Cipher-Block Chaining
+    with Ciphertext Stealing (CBC-CTS) mode of operation.
+    
+    CBC-CTS mode can only operate on `data` that is greater than 8 bytes in
+    length.
+    
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
+    
+    `data` should be a :obj:`bytes`-like object that is greater than 8 bytes in
+    length.
+    If it is not, a :exc:`ValueError` exception is raised.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with exactly 8 bytes.
+    If it is not, a :exc:`ValueError` exception is raised.
+    """
+    data_len = len(data)
+    if data_len <= 8:
+      raise ValueError("data is not greater than 8 bytes in length")
+    
+    S1, S2, S3, S4 = self.S
+    P = self.P
+    
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    u4_2_pack = self._u4_2_pack
+    u4_2_unpack = self._u4_2_unpack
+    encrypt = self._encrypt
+    
+    try:
+      prev_cipher_L, prev_cipher_R = u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
+      
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
+    
+    plain_L, plain_R = u4_2_unpack(data[0:8])
+    prev_cipher_L, prev_cipher_R = encrypt(
+      plain_L ^ prev_cipher_L,
+      plain_R ^ prev_cipher_R,
+      P, S1, S2, S3, S4,
+      u4_1_pack, u1_4_unpack
+    )
+    cipher_block = u4_2_pack(prev_cipher_L, prev_cipher_R)
+    
+    for plain_L, plain_R in self._u4_2_iter_unpack(data[8:last_block_stop_i]):
+      yield cipher_block
+      prev_cipher_L, prev_cipher_R = encrypt(
+        plain_L ^ prev_cipher_L,
+        plain_R ^ prev_cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
+      cipher_block = u4_2_pack(prev_cipher_L, prev_cipher_R)
+    
+    P_L, P_R = u4_2_unpack(data[last_block_stop_i:] + bytes(8 - extra_bytes))
+    
+    yield u4_2_pack(
+      *encrypt(
+        prev_cipher_L ^ P_L,
+        prev_cipher_R ^ P_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
+    )
+    
+    yield cipher_block[:extra_bytes]
+    
+  def decrypt_cbc_cts(self, data, init_vector):
+    """
+    Return an iterator that decrypts `data` using the Cipher-Block Chaining
+    with Ciphertext Stealing (CBC-CTS) mode of operation.
+    
+    CBC-CTS mode can only operate on `data` that is greater than 8 bytes in
+    length.
+    
+    Each iteration, except the last, always returns a block-sized :obj:`bytes`
+    object (i.e. 8 bytes). The last iteration may return a :obj:`bytes` object
+    with a length less than the block-size, if `data` is not a multiple of the
+    block-size in length.
+    
+    `data` should be a :obj:`bytes`-like object that is greater than 8 bytes in
+    length.
+    If it is not, a :exc:`ValueError` exception is raised.
+    
+    `init_vector` is the initialization vector and should be a
+    :obj:`bytes`-like object with exactly 8 bytes.
+    If it is not, a :exc:`ValueError` exception is raised.
+    """
+    data_len = len(data)
+    if data_len <= 8:
+      raise ValueError("data is not greater than 8 bytes in length")
+    
+    S1, S2, S3, S4 = self.S
+    P = self.P
+    
+    u4_1_pack = self._u4_1_pack
+    u1_4_unpack = self._u1_4_unpack
+    u4_2_pack = self._u4_2_pack
+    u4_2_unpack = self._u4_2_unpack
+    decrypt = self._decrypt
+    
+    try:
+      prev_cipher_L, prev_cipher_R = u4_2_unpack(init_vector)
+    except struct_error:
+      raise ValueError("initialization vector is not 8 bytes in length")
+      
+    extra_bytes = data_len % 8
+    last_block_stop_i = data_len - extra_bytes
+    last_block_start_i = last_block_stop_i - 8
+    
+    for cipher_L, cipher_R in self._u4_2_iter_unpack(
+      data[0:last_block_start_i]
+    ):
+      L, R = decrypt(
+        cipher_L, cipher_R,
+        P, S1, S2, S3, S4,
+        u4_1_pack, u1_4_unpack
+      )
+      yield u4_2_pack(L ^ prev_cipher_L, R ^ prev_cipher_R)
+      prev_cipher_L = cipher_L
+      prev_cipher_R = cipher_R
+    
+    cipher_L, cipher_R = u4_2_unpack(data[last_block_start_i:last_block_stop_i])
+    L, R = decrypt(
+      cipher_L, cipher_R,
+      P, S1, S2, S3, S4,
+      u4_1_pack, u1_4_unpack
+    )
+    
+    C_L, C_R = u4_2_unpack(data[last_block_stop_i:] + bytes(8 - extra_bytes))
+    
+    Xn = u4_2_pack(L ^ C_L, R ^ C_R)
+    
+    E_L, E_R = u4_2_unpack(data[last_block_stop_i:] + Xn[extra_bytes:])
+    L, R = decrypt(
+      E_L, E_R,
+      P, S1, S2, S3, S4,
+      u4_1_pack, u1_4_unpack
+    )
+    yield u4_2_pack(L ^ prev_cipher_L, R ^ prev_cipher_R)
+     
+    yield Xn[:extra_bytes]
+    
   def encrypt_pcbc(self, data, init_vector):
     """
     Return an iterator that encrypts `data` using the Propagating Cipher-Block
