@@ -18,15 +18,13 @@ class Timer(object):
 if __name__ == "__main__":
   test_cipher = blowfish.Cipher(b"this ist a key")
   
-  times = 5
+  times = 6
   num_bytes = 10000 * 8
   
   rand_bytes = urandom(num_bytes)
-  
-  # non block multiple bytes
-  odd_rand_bytes = rand_bytes + urandom(7)
-  odd_num_bytes = len(odd_rand_bytes)
-  
+  iv = urandom(8)
+  nonce = int.from_bytes(urandom(8), "big")
+    
   print("Benchmarking 'encrypt_block'...")
   total = 0
   for n in range(1, times):
@@ -77,11 +75,30 @@ if __name__ == "__main__":
     total += timer.elapsed
   print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
+  print("\nBenchmarking 'encrypt_ecb_cts'...")
+  total = 0
+  for n in range(1, times):
+    timer = Timer(perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_ecb_cts(rand_bytes))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+    total += timer.elapsed
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  
+  print("\nBenchmarking 'decrypt_ecb_cts'...")
+  total = 0
+  for n in range(1, times):
+    timer = Timer(perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_ecb_cts(rand_bytes))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+    total += timer.elapsed
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  
   print("\nBenchmarking 'encrypt_cbc'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
       b"".join(test_cipher.encrypt_cbc(rand_bytes, iv))
     print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
@@ -92,9 +109,28 @@ if __name__ == "__main__":
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
       b"".join(test_cipher.decrypt_cbc(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+    total += timer.elapsed
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  
+  print("\nBenchmarking 'encrypt_cbc_cts'...")
+  total = 0
+  for n in range(1, times):
+    timer = Timer(perf_counter)
+    with timer:
+      b"".join(test_cipher.encrypt_cbc_cts(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
+    total += timer.elapsed
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
+  
+  print("\nBenchmarking 'decrypt_cbc_cts'...")
+  total = 0
+  for n in range(1, times):
+    timer = Timer(perf_counter)
+    with timer:
+      b"".join(test_cipher.decrypt_cbc_cts(rand_bytes, iv))
     print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
   print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
@@ -103,7 +139,6 @@ if __name__ == "__main__":
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
       b"".join(test_cipher.encrypt_pcbc(rand_bytes, iv))
     print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
@@ -114,7 +149,6 @@ if __name__ == "__main__":
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
       b"".join(test_cipher.decrypt_pcbc(rand_bytes, iv))
     print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
@@ -125,78 +159,62 @@ if __name__ == "__main__":
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
-      b"".join(test_cipher.encrypt_cfb(odd_rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.encrypt_cfb(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
   print("\nBenchmarking 'decrypt_cfb'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
-      b"".join(test_cipher.decrypt_cfb(odd_rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.decrypt_cfb(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
   print("\nBenchmarking 'encrypt_ofb'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
-      b"".join(test_cipher.encrypt_ofb(odd_rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.encrypt_ofb(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
   print("\nBenchmarking 'decrypt_ofb'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    iv = b"12345678"
     with timer:
-      b"".join(test_cipher.decrypt_ofb(odd_rand_bytes, iv))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.decrypt_ofb(rand_bytes, iv))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
   print("\nBenchmarking 'encrypt_ctr'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    counter = blowfish.ctr_counter(412232, operator.xor)
+    counter = blowfish.ctr_counter(nonce, operator.xor)
     with timer:
-      b"".join(test_cipher.encrypt_ctr(odd_rand_bytes, counter))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.encrypt_ctr(rand_bytes, counter))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
   
   print("\nBenchmarking 'decrypt_ctr'...")
   total = 0
   for n in range(1, times):
     timer = Timer(perf_counter)
-    counter = blowfish.ctr_counter(412232, operator.xor)
+    counter = blowfish.ctr_counter(nonce, operator.xor)
     with timer:
-      b"".join(test_cipher.decrypt_ctr(odd_rand_bytes, counter))
-    print("{} random bytes in {:.5f} sec".format(odd_num_bytes, timer.elapsed))
+      b"".join(test_cipher.decrypt_ctr(rand_bytes, counter))
+    print("{} random bytes in {:.5f} sec".format(num_bytes, timer.elapsed))
     total += timer.elapsed
-  print("{} random bytes in {:.5f} sec (average)".format(
-    odd_num_bytes, total / n
-  ))
+  print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
       
 # vim: tabstop=2 expandtab
