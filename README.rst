@@ -17,6 +17,7 @@ Features
 - Electronic Codebook (ECB) mode
 - Electronic Codebook with Ciphertext Stealing (ECB-CTS) mode
 - Cipher-Block Chaining (CBC) mode
+- Cipher-Block Chaining with Ciphertext Stealing (CBC-CTS) mode
 - Propagating Cipher-Block Chaining (PCBC) mode
 - Cipher Feedback (CFB) mode
 - Output Feedback (OFB) mode
@@ -53,6 +54,14 @@ Want to add a mode of operation? Speed up encryption?
 Make your changes to a clone of the repository at
 https://github.com/jashandeep-sohi/python-blowfish
 and send me a pull request.
+
+Tests
+-----
+Tests are written using the Python `unittest` framework. All tests are in the
+``test.py`` file and can be run using::
+  
+  $ python -m unittest test.py
+
 
 Bugs
 ----
@@ -122,8 +131,8 @@ multiple of the block-size in length.
 Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
 ############################################################
 To encrypt or decrypt data in ECB-CTS mode, use `encrypt_ecb_cts` or 
-`decrypt_ecb_cts` methods of the `Cipher` object. ECB-CTS mode can operate
-on data of any length as long as it is at least 8 bytes long.
+`decrypt_ebc_cts` methods of the `Cipher` object. ECB-CTS mode can operate
+on data of any length greater than 8 bytes.
 
 .. code:: python3
 
@@ -150,6 +159,23 @@ multiple of the block-size in length.
     
     assert block_multiple_data == b"".join(cbc_plaintext_iter)
     
+Cipher-Block Chaining with Ciphertext Stealing (CBC-CTS)
+########################################################
+To encrypt or decrypt data in CBC-CTS mode, use `encrypt_cbc_cts` or
+`decrypt_cbc_cts` methods of the `Cipher` object. CBC-CTS mode can operate
+on data of any length greater than 8 bytes.
+
+.. code:: python3
+
+    cbc_cts_ciphertext_iter = cipher.encrypt_cbc_cts(
+      non_block_multiple_data, iv
+    )
+    cbc_cts_plaintext_iter = cipher.decrypt_cbc_cts(
+      b"".join(cbc_cts_ciphertext_iter), iv
+    )
+    
+    assert non_block_multiple_data == b"".join(cbc_cts_plaintext_iter)
+
 Propagating Cipher-Block Chaining Mode (PCBC)
 #############################################
 To encrypt or decrypt data in PCBC mode, use `encrypt_pcbc` or `decrypt_pcbc`
