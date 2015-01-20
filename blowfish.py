@@ -289,7 +289,7 @@ class Cipher(object):
   
   ECB, CBC & PCBC modes can only operate on data that is a multiple of the
   block-size in length (i.e. 8, 16, 32, etc. bytes).
-  ECB-CTS and CBC-CTS modes can onlly operate on data that is greater than 8
+  ECB-CTS and CBC-CTS modes can only operate on data that is greater than 8
   bytes long.
   CTR, CFB and OFB modes can operate on data of any length.
   
