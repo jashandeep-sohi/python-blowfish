@@ -113,7 +113,24 @@ class ModesOfOperation(unittest.TestCase):
     )
 
     self.assertEqual(block_multiple_data, decrypted_data)
+  
+  def test_cbc_cts_mode(self):
+    cipher = self.cipher
+    block_multiple_data = self.block_multiple_data
+    init_vector = urandom(8)
     
+    for i in range(0, 8):
+      with self.subTest(extra_bytes = i):
+        data = block_multiple_data + urandom(i)
+        
+        encrypted_data = b"".join(
+          cipher.encrypt_cbc_cts(data, init_vector)
+        )
+        decrypted_data = b"".join(
+          cipher.decrypt_cbc_cts(encrypted_data, init_vector)
+        )
+        self.assertEqual(data, decrypted_data)
+  
   def test_pcbc_mode(self):
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
