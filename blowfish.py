@@ -1043,19 +1043,20 @@ class Cipher(object):
       prev_cipher_R ^= plain_R
       yield u4_2_pack(prev_cipher_L, prev_cipher_R)
       
-    yield bytes(
-      b ^ n for b, n in zip(
-        data[last_block_stop_i:],
-        u4_2_pack(
-          *encrypt(
-            prev_cipher_L, prev_cipher_R,
-            P, S1, S2, S3, S4,
-            u4_1_pack, u1_4_unpack
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[last_block_stop_i:],
+          u4_2_pack(
+            *encrypt(
+              prev_cipher_L, prev_cipher_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
           )
         )
       )
-    )
-    
+      
   def decrypt_cfb(self, data, init_vector):
     """
     Return an iterator that decrypts `data` using the Cipher Feedback (CFB)
@@ -1104,19 +1105,20 @@ class Cipher(object):
       prev_cipher_L = cipher_L
       prev_cipher_R = cipher_R
       
-    yield bytes(
-      b ^ n for b, n in zip(
-        data[last_block_stop_i:],
-        u4_2_pack(
-          *encrypt(
-            prev_cipher_L, prev_cipher_R,
-            P, S1, S2, S3, S4,
-            u4_1_pack, u1_4_unpack
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[last_block_stop_i:],
+          u4_2_pack(
+            *encrypt(
+              prev_cipher_L, prev_cipher_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
           )
         )
       )
-      )
-    
+      
   def encrypt_ofb(self, data, init_vector):
     """
     Return an iterator that encrypts `data` using the Output Feedback (OFB)
@@ -1163,20 +1165,20 @@ class Cipher(object):
       )
       yield u4_2_pack(plain_L ^ prev_L, plain_R ^ prev_R)
     
-    yield bytes(
-      b ^ n for b, n in zip(
-        data[last_block_stop_i:],
-        u4_2_pack(
-          *encrypt(
-            prev_L, prev_R,
-            P, S1, S2, S3, S4,
-            u4_1_pack, u1_4_unpack
+    if extra_bytes:
+      yield bytes(
+        b ^ n for b, n in zip(
+          data[last_block_stop_i:],
+          u4_2_pack(
+            *encrypt(
+              prev_L, prev_R,
+              P, S1, S2, S3, S4,
+              u4_1_pack, u1_4_unpack
+            )
           )
         )
       )
-    )
       
-    
   def decrypt_ofb(self, data, init_vector):
     """
     Return an iterator that decrypts `data` using the Output Feedback (OFB)
