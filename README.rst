@@ -1,6 +1,12 @@
 blowfish
 ========
-Fast, efficient Blowfish cipher implementation in pure Python (3.4+).
+This module implements the Blowfish cipher using only Python (3.4+).
+
+Blowfish is a block cipher that can be used for symmetric-key encryption. It
+has a 8-byte block size and supports a variable-length key, from 4 to 56 bytes.
+It's fast, free and has been analyzed considerably. It was designed by Bruce
+Schneier and more details about it can be found at
+<https://www.schneier.com/blowfish.html>.
 
 .. contents::
     :local:
