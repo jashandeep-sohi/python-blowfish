@@ -27,7 +27,7 @@ Schneier and more details about it can be found at
 from struct import Struct, error as struct_error
 from itertools import cycle as iter_cycle
 
-__version__ = "0.6.0"
+__version__ = "0.7.0"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
