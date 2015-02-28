@@ -330,7 +330,7 @@ class Cipher(object):
     
     # Create structs
     u4_2_struct = Struct("{}2I".format(byte_order_fmt))
-    u4_1_struct = Struct("{}I".format(byte_order_fmt))
+    u4_1_struct = Struct(">I".format(byte_order_fmt))
     u8_1_struct = Struct("{}Q".format(byte_order_fmt))
     u1_4_struct = Struct("=4B")
       
