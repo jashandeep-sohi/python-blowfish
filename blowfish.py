@@ -27,7 +27,7 @@ Schneier and more details about it can be found at
 from struct import Struct, error as struct_error
 from itertools import cycle as iter_cycle
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 # PI_P_ARRAY & PI_S_BOXES are the hexadecimal digits of π (the irrational)
 # taken from <https://www.schneier.com/code/constants.txt>.
@@ -330,7 +330,7 @@ class Cipher(object):
     
     # Create structs
     u4_2_struct = Struct("{}2I".format(byte_order_fmt))
-    u4_1_struct = Struct("{}I".format(byte_order_fmt))
+    u4_1_struct = Struct(">I".format(byte_order_fmt))
     u8_1_struct = Struct("{}Q".format(byte_order_fmt))
     u1_4_struct = Struct("=4B")
       
