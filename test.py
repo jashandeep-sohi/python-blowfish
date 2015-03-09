@@ -5,9 +5,10 @@ from os import urandom
 
 class Cipher(unittest.TestCase):
   
-  def setUp(self):
+  @classmethod
+  def setUpClass(cls):
     # Test vectors from <https://www.schneier.com/code/vectors.txt>
-    self.test_blocks = (
+    test_vectors = (
       # key                 clear text          cipher text
       ("0000000000000000", "0000000000000000", "4EF997456198DD78"),
       ("FFFFFFFFFFFFFFFF", "FFFFFFFFFFFFFFFF", "51866FD5B85ECB8A"),
@@ -45,27 +46,25 @@ class Cipher(unittest.TestCase):
       ("FEDCBA9876543210", "FFFFFFFFFFFFFFFF", "6B5C5A9C5D9E0A5A"),
     )
     
+    cls.test_vectors = [
+      (
+        blowfish.Cipher(bytes.fromhex(key)),
+        key, clear_text, cipher_text
+      )
+      for key, clear_text, cipher_text in test_vectors
+    ]
+    
   def test_encrypt_block(self):
-    for key, clear_text, cipher_text in self.test_blocks:
-      with self.subTest(
-        key = key,
-        clear_text = clear_text,
-        cipher_text = cipher_text
-      ):
-        cipher = blowfish.Cipher(bytes.fromhex(key))
+    for cipher, key, clear_text, cipher_text in self.test_vectors:
+      with self.subTest(key = key, clear_text = clear_text):
         self.assertEqual(
           cipher.encrypt_block(bytes.fromhex(clear_text)),
           bytes.fromhex(cipher_text)
         )
   
   def test_decrypt_block(self):
-    for key, clear_text, cipher_text in self.test_blocks:
-      with self.subTest(
-        key = key,
-        clear_text = clear_text,
-        cipher_text = cipher_text
-      ):
-        cipher = blowfish.Cipher(bytes.fromhex(key))
+    for cipher, key, clear_text, cipher_text in self.test_vectors:
+      with self.subTest(key = key, cipher_text = cipher_text):
         self.assertEqual(
           cipher.decrypt_block(bytes.fromhex(cipher_text)),
           bytes.fromhex(clear_text)
