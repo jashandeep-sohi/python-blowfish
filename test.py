@@ -4,9 +4,14 @@ import operator
 from os import urandom
 
 class Cipher(unittest.TestCase):
-  
+  """
+  Test core functionality, i.e. encrypting & decrypting blocks.
+  """
   @classmethod
   def setUpClass(cls):
+    """
+    Setup the test vectors and cipher objects.
+    """
     # Test vectors from <https://www.schneier.com/code/vectors.txt>
     test_vectors = (
       # key                 clear text          cipher text
@@ -55,6 +60,9 @@ class Cipher(unittest.TestCase):
     ]
     
   def test_encrypt_block(self):
+    """
+    Test encryption of blocks.
+    """
     for cipher, key, clear_text, cipher_text in self.test_vectors:
       with self.subTest(key = key, clear_text = clear_text):
         self.assertEqual(
@@ -63,6 +71,9 @@ class Cipher(unittest.TestCase):
         )
   
   def test_decrypt_block(self):
+    """
+    Test decryption of blocks.
+    """
     for cipher, key, clear_text, cipher_text in self.test_vectors:
       with self.subTest(key = key, cipher_text = cipher_text):
         self.assertEqual(
@@ -71,9 +82,14 @@ class Cipher(unittest.TestCase):
         )
 
 class CipherLittleEndian(Cipher):
-  
+  """
+  Test core functionality with little-endian byte order input data.
+  """
   @classmethod
   def setUpClass(cls):
+    """
+    Setup little-endian test vectors and cipher objects.
+    """
     # Test vectors derived from <https://www.schneier.com/code/vectors.txt>
     # I've simply changed the clear text and cipher text to little endian byte
     # order hex.
@@ -124,13 +140,21 @@ class CipherLittleEndian(Cipher):
     ]
         
 class ModesOfOperation(unittest.TestCase):
-  
+  """
+  Test the various implemented modes of operation.
+  """
   @classmethod
   def setUpClass(cls):
+    """
+    Setup the Cipher object and dummy test data.
+    """
     cls.cipher = blowfish.Cipher(b"this ist ein key")
     cls.block_multiple_data = urandom(500 * 8)
   
   def test_ecb_mode(self):
+    """
+    Test ECB mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     
@@ -140,6 +164,9 @@ class ModesOfOperation(unittest.TestCase):
     self.assertEqual(block_multiple_data, decrypted_data)
     
   def test_ecb_cts_mode(self):
+    """
+    Test ECB-CTS mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     
@@ -153,6 +180,9 @@ class ModesOfOperation(unittest.TestCase):
         self.assertEqual(data, decrypted_data)
     
   def test_cbc_mode(self):
+    """
+    Test CBC mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     init_vector = urandom(8)
@@ -167,6 +197,9 @@ class ModesOfOperation(unittest.TestCase):
     self.assertEqual(block_multiple_data, decrypted_data)
   
   def test_cbc_cts_mode(self):
+    """
+    Test CBC-CTS mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     init_vector = urandom(8)
@@ -184,6 +217,9 @@ class ModesOfOperation(unittest.TestCase):
         self.assertEqual(data, decrypted_data)
   
   def test_pcbc_mode(self):
+    """
+    Test PCBC mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     init_vector = urandom(8)
@@ -198,6 +234,9 @@ class ModesOfOperation(unittest.TestCase):
     self.assertEqual(block_multiple_data, decrypted_data)
   
   def test_cfb_mode(self):
+    """
+    Test CFB mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     init_vector = urandom(8)
@@ -215,6 +254,9 @@ class ModesOfOperation(unittest.TestCase):
         self.assertEqual(data, decrypted_data)
   
   def test_ofb_mode(self):
+    """
+    Test OFB mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     init_vector = urandom(8)
@@ -232,6 +274,9 @@ class ModesOfOperation(unittest.TestCase):
         self.assertEqual(data, decrypted_data)
   
   def test_ctr_mode(self):
+    """
+    Test CTR mode.
+    """
     cipher = self.cipher
     block_multiple_data = self.block_multiple_data
     nonce = int.from_bytes(urandom(8), "big")
