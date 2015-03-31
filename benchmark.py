@@ -19,7 +19,7 @@ if __name__ == "__main__":
   test_cipher = blowfish.Cipher(b"this ist a key")
   
   times = 6
-  num_bytes = 10000 * 8
+  num_bytes = 100000
   
   rand_bytes = urandom(num_bytes)
   iv = urandom(8)
