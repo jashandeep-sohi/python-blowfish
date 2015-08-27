@@ -1212,9 +1212,9 @@ class Cipher(object):
     guaranteed not to repeat for a long time.
     If any integer in the sequence is not less than 2^64, a :exc:`ValueError`
     exception is raised.
-    `counter` should be at least as long as `data`, otherwise the returned
-    iterator will only encrypt `data` partially, stopping when `counter` is
-    exhausted.
+    ``len(counter)`` should be at least as much as ``ceil(len(data)/8)``,
+    otherwise the returned iterator will only encrypt `data` partially,
+    stopping when `counter` is exhausted.
     A good default is implemented by :func:`blowfish.ctr_counter`.
     
     `data` should be a :obj:`bytes`-like object (of any length).
