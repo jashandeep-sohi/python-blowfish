@@ -139,16 +139,21 @@ class CipherLittleEndian(Cipher):
       for key, clear_text, cipher_text in test_vectors
     ]
         
-class ModesOfOperation(unittest.TestCase):
+class ModesOfOperationMixin(object):
   """
-  Test the various implemented modes of operation.
+  Test the modes of operation.
   """
+  byte_order = None
+  
   @classmethod
   def setUpClass(cls):
     """
     Setup the Cipher object and dummy test data.
     """
-    cls.cipher = blowfish.Cipher(b"this ist ein key")
+    cls.cipher = blowfish.Cipher(
+      b"this ist ein key",
+      byte_order = cls.byte_order
+    )
     cls.block_multiple_data = urandom(500 * 8)
   
   def test_ecb_mode(self):
@@ -298,5 +303,19 @@ class ModesOfOperation(unittest.TestCase):
           )
         )
         self.assertEqual(data, decrypted_data)
-    
+
+class ModesOfOperationBigEndian(ModesOfOperationMixin, unittest.TestCase):
+  """
+  Test the modes of operation using big-endian byte order input.
+  """
+  
+  byte_order = "big"
+  
+class ModesOfOperationLittleEndian(ModesOfOperationMixin, unittest.TestCase):
+  """
+  Test the modes of operation using little-endian byte order input.
+  """
+  
+  byte_order = "little"
+
 # vim: tabstop=2 expandtab
