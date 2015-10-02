@@ -1,3 +1,5 @@
+.. vim: filetype=rst tabstop=2 expandtab
+
 blowfish
 ========
 This module implements the Blowfish cipher using only Python (3.4+).
@@ -255,4 +257,3 @@ you should implement your own for optimization purposes.
     
     assert data == data_decrypted
 
-.. vim: tabstop=2 expandtab

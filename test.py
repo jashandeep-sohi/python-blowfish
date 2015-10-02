@@ -1,3 +1,5 @@
+# vim: filetype=python3 tabstop=2 expandtab
+
 import unittest
 import blowfish
 import operator
@@ -320,4 +322,3 @@ class ModesOfOperationLittleEndian(ModesOfOperationMixin, unittest.TestCase):
   
   byte_order = "little"
 
-# vim: tabstop=2 expandtab
