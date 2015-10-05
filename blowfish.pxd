@@ -1,3 +1,5 @@
+# vim: filetype=python3 tabstop=2 expandtab
+
 # blowfish
 # Copyright (C) 2015 Jashandeep Sohi <jashandeep.s.sohi@gmail.com>
 #
