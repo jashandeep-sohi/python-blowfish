@@ -1,3 +1,5 @@
+# vim: filetype=python3 tabstop=2 expandtab
+
 # blowfish
 # Copyright (C) 2015 Jashandeep Sohi <jashandeep.s.sohi@gmail.com>
 #
@@ -13,6 +15,8 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+import dist
 
 from blowfish import __version__
 from distutils.core import setup
@@ -43,4 +47,7 @@ if __name__ == "__main__":
      "Topic :: Security :: Cryptography",
      "Topic :: Software Development :: Libraries :: Python Modules",  
     ],
+    cmdclass = {
+      "test": dist.test
+    }
   )

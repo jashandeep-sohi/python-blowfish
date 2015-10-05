@@ -1,3 +1,5 @@
+# vim: filetype=python3 tabstop=2 expandtab
+
 import blowfish
 from time import perf_counter
 from os import urandom
@@ -217,4 +219,3 @@ if __name__ == "__main__":
     total += timer.elapsed
   print("{} random bytes in {:.5f} sec (average)".format(num_bytes, total / n))
       
-# vim: tabstop=2 expandtab

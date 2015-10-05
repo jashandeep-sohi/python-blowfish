@@ -1,3 +1,5 @@
+# vim: filetype=python3 tabstop=2 expandtab
+
 # blowfish
 # Copyright (C) 2015 Jashandeep Sohi <jashandeep.s.sohi@gmail.com>
 #
@@ -1307,4 +1309,3 @@ def ctr_counter(nonce, f, start = 0):
     for n in range(0, 2**64):
       yield f(nonce, n)
       
-# vim: tabstop=2 expandtab

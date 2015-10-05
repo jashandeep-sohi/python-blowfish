@@ -1,3 +1,5 @@
+.. vim: filetype=rst tabstop=2 expandtab
+
 blowfish
 ========
 This module implements the Blowfish cipher using only Python (3.4+).
@@ -63,10 +65,10 @@ and send me a pull request.
 
 Tests
 -----
-Tests are written using the Python `unittest` framework. All tests are in the
-``test.py`` file and can be run using::
+Tests are written using the Python `unittest` framework. All tests currently
+reside in the ``test.py`` file and can be run using the `distutils` script::
   
-  $ python -m unittest test.py
+  $ python setup.py test
 
 
 Bugs
@@ -255,4 +257,3 @@ you should implement your own for optimization purposes.
     
     assert data == data_decrypted
 
-.. vim: tabstop=2 expandtab
