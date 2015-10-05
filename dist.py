@@ -18,7 +18,6 @@
 
 import unittest
 import sys
-import os.path
 from pathlib import Path
 from distutils.command.build_ext import build_ext as org_build_ext
 from distutils.cmd import Command
@@ -158,7 +157,7 @@ class test(Command):
     if self.catch:
       unittest.installHandler()
     
-    sys.path.insert(0, os.path.abspath(build.build_lib))
+    sys.path.insert(0, str(Path(build.build_lib).resolve()))
     
     test_loader = unittest.defaultTestLoader
     
