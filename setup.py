@@ -19,9 +19,16 @@
 import dist
 
 from blowfish import __version__
-from distutils.core import setup
+from distutils.core import setup, Extension
 
 if __name__ == "__main__":
+  extensions = [
+    dist.CythonExtension(
+      "blowfish",
+      "blowfish.py",
+    ),
+  ]
+  
   try:
     long_desc = open("./README.rst", "r").read()
   except:
@@ -37,6 +44,7 @@ if __name__ == "__main__":
     url = "https://github.com/jashandeep-sohi/python-blowfish",
     license = "GPLv3",
     py_modules = ["blowfish"],
+    ext_modules = extensions,
     classifiers = [
      "Development Status :: 5 - Production/Stable",
      "Intended Audience :: Developers",
@@ -48,6 +56,7 @@ if __name__ == "__main__":
      "Topic :: Software Development :: Libraries :: Python Modules",  
     ],
     cmdclass = {
-      "test": dist.test
+      "test": dist.test,
+      "build_ext": dist.build_ext
     }
   )

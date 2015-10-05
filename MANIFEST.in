@@ -1,1 +1,1 @@
-include README.rst test.py benchmark.py LICENSE dist.py
+include README.rst test.py benchmark.py LICENSE dist.py blowfish.pxd
