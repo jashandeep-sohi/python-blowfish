@@ -17,17 +17,22 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import dist
-
+from os import environ
 from blowfish import __version__
 from distutils.core import setup, Extension
 
 if __name__ == "__main__":
-  extensions = [
-    dist.CythonExtension(
-      "blowfish",
-      "blowfish.py",
-    ),
-  ]
+  if environ.get("BLOWFISH_EXT") == "1":
+    ext_modules = [
+      dist.CythonExtension(
+        "blowfish",
+        "blowfish.py",
+      ),
+    ]
+    py_modules = []
+  else:
+    py_modules = ["blowfish"]
+    ext_modules = []
   
   try:
     long_desc = open("./README.rst", "r").read()
@@ -43,8 +48,8 @@ if __name__ == "__main__":
     author_email = "jashandeep.s.sohi@gmail.com",
     url = "https://github.com/jashandeep-sohi/python-blowfish",
     license = "GPLv3",
-    py_modules = ["blowfish"],
-    ext_modules = extensions,
+    py_modules = py_modules,
+    ext_modules = ext_modules,
     classifiers = [
      "Development Status :: 5 - Production/Stable",
      "Intended Audience :: Developers",
