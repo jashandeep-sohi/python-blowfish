@@ -46,7 +46,7 @@ class CythonExtension(Extension):
     **kwargs
   ):
     self.cython_source = Path(cython_source)
-    self.output_dir = output_dir or Path("cythonized")
+    self.output_dir = Path(output_dir or "cythonized")
     self.language_level = language_level or 3
     self.cplus = cplus or False
     self.annotate = annotate or False
