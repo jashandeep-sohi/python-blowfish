@@ -229,6 +229,8 @@ you should implement your own for optimization purposes.
 
 Electronic Codebook Mode (ECB)
 ##############################
+**Note: ECB mode does not provide strong confidentiality, regardless of the
+cipher, and is not recommended for use in applications.**
 To encrypt or decrypt data in ECB mode, use `encrypt_ecb` or `decrypt_ecb`
 methods of the `Cipher` object. ECB mode can only operate on data that is a
 multiple of the block-size in length.
@@ -244,6 +246,7 @@ multiple of the block-size in length.
     
 Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
 ############################################################
+**Note: the warning pertaining to ECB mode above also applies to ECB-CTS.**
 To encrypt or decrypt data in ECB-CTS mode, use `encrypt_ecb_cts` or 
 `decrypt_ebc_cts` methods of the `Cipher` object. ECB-CTS mode can operate
 on data of any length greater than 8 bytes.
