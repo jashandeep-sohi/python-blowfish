@@ -22,14 +22,14 @@ Features
 --------
 - Fast (well, as fast you can possibly go using only Python 3.4+)
 - Efficient; generators/iterators are used liberally to reduce memory usage
-- Electronic Codebook (ECB) mode
-- Electronic Codebook with Ciphertext Stealing (ECB-CTS) mode
 - Cipher-Block Chaining (CBC) mode
 - Cipher-Block Chaining with Ciphertext Stealing (CBC-CTS) mode
 - Propagating Cipher-Block Chaining (PCBC) mode
 - Cipher Feedback (CFB) mode
 - Output Feedback (OFB) mode
 - Counter (CTR) mode
+- Electronic Codebook (ECB) mode
+- Electronic Codebook with Ciphertext Stealing (ECB-CTS) mode
 
 Installation
 ------------
@@ -123,37 +123,7 @@ To encrypt or decrypt a block of data (8 bytes), use the `encrypt_block` or
     
 As these methods can only operate on 8 bytes of data, they're of little
 practical use. Instead, use one of the implemented modes of operation.
-    
-Electronic Codebook Mode (ECB)
-##############################
-To encrypt or decrypt data in ECB mode, use `encrypt_ecb` or `decrypt_ecb`
-methods of the `Cipher` object. ECB mode can only operate on data that is a
-multiple of the block-size in length.
-
-.. code:: python3
-
-    data = urandom(10 * 8) # data to encrypt
-    
-    data_encrypted = b"".join(cipher.encrypt_ecb(data))
-    data_decrypted = b"".join(cipher.decrypt_ecb(data_encrypted)
-    
-    assert data == data_decrypted
-    
-Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
-############################################################
-To encrypt or decrypt data in ECB-CTS mode, use `encrypt_ecb_cts` or 
-`decrypt_ebc_cts` methods of the `Cipher` object. ECB-CTS mode can operate
-on data of any length greater than 8 bytes.
-
-.. code:: python3
-
-    data = urandom(10 * 8 + 5) # data to encrypt
-    
-    data_encrypted = b"".join(cipher.encrypt_ecb_cts(data))
-    data_decrypted = b"".join(cipher.decrypt_ecb_cts(data_encrypted))
-    
-    assert data == data_decrypted
-    
+     
 Cipher-Block Chaining Mode (CBC)
 ################################
 To encrypt or decrypt data in CBC mode, use `encrypt_cbc` or `decrypt_cbc`
@@ -254,6 +224,41 @@ you should implement your own for optimization purposes.
     
     data_encrypted = b"".join(cipher.encrypt_ctr(data, enc_counter))
     data_decrypted = b"".join(cipher.decrypt_ctr(data_encrypted, dec_counter))
+    
+    assert data == data_decrypted
+
+Electronic Codebook Mode (ECB)
+##############################
+**Note: ECB mode does not provide strong confidentiality, regardless of the
+cipher, and is not recommended for use in applications.**
+
+To encrypt or decrypt data in ECB mode, use `encrypt_ecb` or `decrypt_ecb`
+methods of the `Cipher` object. ECB mode can only operate on data that is a
+multiple of the block-size in length.
+
+.. code:: python3
+
+    data = urandom(10 * 8) # data to encrypt
+    
+    data_encrypted = b"".join(cipher.encrypt_ecb(data))
+    data_decrypted = b"".join(cipher.decrypt_ecb(data_encrypted)
+    
+    assert data == data_decrypted
+    
+Electronic Codebook Mode with Cipher Text Stealing (ECB-CTS)
+############################################################
+**Note: the warning pertaining to ECB mode above also applies to ECB-CTS.**
+
+To encrypt or decrypt data in ECB-CTS mode, use `encrypt_ecb_cts` or 
+`decrypt_ebc_cts` methods of the `Cipher` object. ECB-CTS mode can operate
+on data of any length greater than 8 bytes.
+
+.. code:: python3
+
+    data = urandom(10 * 8 + 5) # data to encrypt
+    
+    data_encrypted = b"".join(cipher.encrypt_ecb_cts(data))
+    data_decrypted = b"".join(cipher.decrypt_ecb_cts(data_encrypted))
     
     assert data == data_decrypted
 
