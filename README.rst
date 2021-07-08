@@ -241,7 +241,7 @@ multiple of the block-size in length.
     data = urandom(10 * 8) # data to encrypt
     
     data_encrypted = b"".join(cipher.encrypt_ecb(data))
-    data_decrypted = b"".join(cipher.decrypt_ecb(data_encrypted)
+    data_decrypted = b"".join(cipher.decrypt_ecb(data_encrypted))
     
     assert data == data_decrypted
     
