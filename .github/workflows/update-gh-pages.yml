@@ -41,7 +41,7 @@ jobs:
       - name: Update gh-pages branch
         run: |
           cd "$GITHUB_WORKSPACE/gh-pages"
-          rst2html5.py "$GITHUB_WORKSPACE/src/README.rst index.html
+          rst2html5.py "$GITHUB_WORKSPACE/src/README.rst" index.html
           git add index.html
           git commit -m "Update pages"
           git push origin gh-pages
