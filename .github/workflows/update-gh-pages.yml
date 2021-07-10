@@ -23,7 +23,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           path: gh-pages
-          branch: gh-pages
+          ref: gh-pages
         
       - name: Setup Python
         uses: actions/setup-python@v2
