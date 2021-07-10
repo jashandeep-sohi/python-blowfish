@@ -31,6 +31,7 @@ jobs:
       
       - name: Update gh-pages branch
         run: |
+          cd "$GITHUB_WORKSPACE"
           git checkout gh-pages
           git checkout master -- README.rst
           rst2html5.py README.rst index.html
