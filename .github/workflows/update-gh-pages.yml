@@ -19,7 +19,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.4
+          python-version: "3.4"
       
       - name: Install generator tools
         run: pip install docutils pygments
