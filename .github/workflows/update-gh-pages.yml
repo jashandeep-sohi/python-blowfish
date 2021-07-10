@@ -13,9 +13,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+     # Checks-out your repository under $GITHUB_WORKSPACE
+      - name: Checkout branch to build
+        uses: actions/checkout@v2
+        with:
+          path: src
       
+      - name: Checkout gh-pages
+        uses: actions/checkout@v2
+        with:
+          path: gh-pages
+          branch: gh-pages
+        
       - name: Setup Python
         uses: actions/setup-python@v2
         with:
@@ -24,17 +33,15 @@ jobs:
       - name: Install generator tools
         run: pip install docutils pygments
         
-      - name: Setup Git
+      - name: Setup Git config for push
         run: |
           git config --global user.name 'Jashandeep Sohi'
           git config --global user.email 'jashandeep-sohi@users.noreply.github.com'
       
       - name: Update gh-pages branch
         run: |
-          cd "$GITHUB_WORKSPACE"
-          git checkout gh-pages
-          git checkout master -- README.rst
-          rst2html5.py README.rst index.html
+          cd "$GITHUB_WORKSPACE/gh-pages"
+          rst2html5.py "$GITHUB_WORKSPACE/src/README.rst index.html
           git add index.html
           git commit -m "Update pages"
           git push origin gh-pages
