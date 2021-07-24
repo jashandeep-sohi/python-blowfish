@@ -1,4 +1,4 @@
-.. vim: filetype=rst tabstop=2 expandtab
+|pypi-badge| |ci-badge|
 
 blowfish
 ========
@@ -262,3 +262,11 @@ on data of any length greater than 8 bytes.
     
     assert data == data_decrypted
 
+
+.. |pypi-badge| image:: https://img.shields.io/pypi/v/blowfish
+    :alt: PyPI
+    :target: https://pypi.org/project/blowfish
+ 
+.. |ci-badge| image:: https://github.com/jashandeep-sohi/python-blowfish/actions/workflows/ci.yml/badge.svg
+    :alt: CI
+    :target: https://github.com/jashandeep-sohi/python-blowfish/actions/workflows/ci.yml
